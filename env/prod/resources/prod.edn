@@ -1,0 +1,21 @@
+{:hosted-clay.concerns/http-kit {:opts {:port #env/long ["PORT" 8080]}}
+
+ ;; The SQLite file lives on the Fly volume mounted at /data.
+ :hosted-clay.db/datasource {:db-path "/data/hosted-clay.db"}
+
+ ;; The public origin (e.g. https://notebooks.example.com), set as a Fly
+ ;; env var. Drives share links, warning emails, and the CSRF check.
+ :hosted-clay/base-url #env "BASE_URL"
+
+ ;; Hanko Cloud project base URL.
+ :hosted-clay.auth/middleware     {:api-url #env "HANKO_API_URL"}
+ :hosted-clay.handlers.auth/login {:api-url #env "HANKO_API_URL"}
+
+ ;; Sprites org token (Fly secret).
+ :hosted-clay.sprites/client {:token #env/secret "SPRITES_TOKEN"}
+
+ ;; Resend (Fly secret) for the deletion-warning email; FROM must be a
+ ;; verified sender on the Resend account. With no key set, warnings are
+ ;; logged instead of sent.
+ :hosted-clay/email {:api-key #secret #env/opt "RESEND_API_KEY"
+                     :from    #env/opt ["EMAIL_FROM" "Clay notebooks <onboarding@resend.dev>"]}}

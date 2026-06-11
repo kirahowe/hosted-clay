@@ -1,0 +1,45 @@
+{:paths ["tasks"]
+
+ :tasks
+ {:requires ([depends :as dep])
+
+  flyctl:installed
+  {:private true
+   :task    (dep/require-cli! "flyctl" "https://fly.io/docs/flyctl/install/")}
+
+  docker:installed
+  {:private true
+   :task    (dep/require-cli! "docker" "https://docs.docker.com/get-docker/")}
+
+  repl     {:doc              "Start a Clojure REPL with dev + test on the classpath"
+            :override-builtin true
+            :task             (dep/sh! "clojure" "-M:dev:test")}
+
+  dev      {:doc  "Run the dev system"
+            :task (dep/sh! "clojure" "-M:dev")}
+
+  lint     {:doc  "Lint with clj-kondo"
+            :task (dep/sh! "clojure" "-M:lint")}
+
+  fmt      {:doc  "Check formatting with cljfmt"
+            :task (dep/sh! "clojure" "-M:cljfmt" "check")}
+
+  fmt:fix  {:doc  "Fix formatting with cljfmt"
+            :task (dep/sh! "clojure" "-M:cljfmt" "fix")}
+
+  test     {:doc  "Run tests with kaocha"
+            :task (dep/sh! "clojure" "-M:test")}
+
+  ci       {:doc     "Lint + fmt-check + tests"
+            :depends [lint fmt test]}
+
+  build    {:doc  "Build an uberjar"
+            :task (dep/sh! "clojure" "-T:build" "uberjar")}
+
+  image    {:doc     "Build a container image"
+            :depends [docker:installed]
+            :task    (dep/sh! "docker" "build" "-t" "hosted-clay:latest" ".")}
+
+  deploy   {:doc     "Deploy to fly.io"
+            :depends [flyctl:installed]
+            :task    (dep/sh! "flyctl" "deploy" "--remote-only")}}}

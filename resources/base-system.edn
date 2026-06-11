@@ -1,0 +1,112 @@
+{:hosted-clay.log/telemere
+ {:min-level :info}
+
+ ;; ---------- constants ----------
+
+ ;; The public origin of this app: used in share links, deletion-warning
+ ;; emails, and the CSRF origin check. Overridden per environment.
+ :hosted-clay/base-url "http://localhost:3000"
+
+ ;; Budget cap: the most sprites (notebooks + warm pool) this deployment
+ ;; will ever hold. The blunt instrument that keeps the prototype's
+ ;; Fly bill bounded.
+ :hosted-clay/max-sprites 60
+
+ ;; ---------- http ----------
+
+ :hosted-clay.concerns.reitit/router
+ {:middleware [#ig/ref :hosted-clay.web/csrf
+               #ig/ref :hosted-clay.auth/middleware]
+  :data
+  [["/"                     {:public? true :get {:handler #ig/ref :hosted-clay.handlers/home}}]
+   ["/login"                {:public? true :get {:handler #ig/ref :hosted-clay.handlers.auth/login}}]
+   ["/logout"               {:public? true :post {:handler #ig/ref :hosted-clay.handlers.auth/logout}}]
+   ["/health"               {:public? true :get {:handler #ig/ref :hosted-clay.handlers/health}}]
+   ["/static/*"             {:public? true :handler #ig/ref :hosted-clay.handlers/static}]
+   ["/dashboard"            {:get  {:handler #ig/ref :hosted-clay.handlers/dashboard}}]
+   ["/notebooks"            {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/create}}]
+   ["/notebooks/:id/delete" {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/delete}}]
+   ;; The owner proxy takes every method (and WebSocket upgrades); the
+   ;; share proxy is read-only and enforces that itself.
+   ["/n/:id"                {:get {:handler #ig/ref :hosted-clay.handlers.notebooks/open-root}}]
+   ["/n/:id/{*path}"        {:handler #ig/ref :hosted-clay.handlers.notebooks/open}]
+   ["/s/:token"             {:public? true :get {:handler #ig/ref :hosted-clay.handlers/share-root}}]
+   ["/s/:token/{*path}"     {:public? true :handler #ig/ref :hosted-clay.handlers/share}]]}
+
+ :hosted-clay.concerns.reitit/default-handler {}
+
+ :hosted-clay.concerns.reitit/ring-handler
+ {:router          #ig/ref :hosted-clay.concerns.reitit/router
+  :default-handler #ig/ref :hosted-clay.concerns.reitit/default-handler}
+
+ :hosted-clay.concerns/http-kit
+ {:handler #ig/ref :hosted-clay.concerns.reitit/ring-handler
+  :opts    {:port 8080 :ip "0.0.0.0"}}
+
+ ;; ---------- storage ----------
+
+ :hosted-clay.db/datasource {:db-path "data/hosted-clay.db"}
+
+ :hosted-clay.db/migrator
+ {:datasource      #ig/ref :hosted-clay.db/datasource
+  :migrations-path "migrations"}
+
+ ;; ---------- auth (hanko api-url supplied per environment) ----------
+
+ :hosted-clay.web/csrf {:site-origin #ig/ref :hosted-clay/base-url}
+
+ :hosted-clay.auth/middleware {:datasource #ig/ref :hosted-clay.db/migrator}
+
+ :hosted-clay.handlers.auth/login  {}
+ :hosted-clay.handlers.auth/logout {}
+
+ ;; ---------- sprites (token supplied per environment) ----------
+
+ :hosted-clay.sprites/client {:api-url "https://api.sprites.dev"}
+
+ ;; ---------- email (resend api-key supplied per environment) ----------
+
+ :hosted-clay/email {:from "Clay notebooks <notebooks@example.com>"}
+
+ ;; ---------- handlers ----------
+
+ :hosted-clay.handlers/home   {}
+ :hosted-clay.handlers/health {}
+ :hosted-clay.handlers/static {:root "public"}
+
+ :hosted-clay.handlers/dashboard
+ {:datasource #ig/ref :hosted-clay.db/migrator
+  :base-url   #ig/ref :hosted-clay/base-url}
+
+ :hosted-clay.handlers.notebooks/create
+ {:datasource     #ig/ref :hosted-clay.db/migrator
+  :sprites-client #ig/ref :hosted-clay.sprites/client
+  :max-sprites    #ig/ref :hosted-clay/max-sprites}
+
+ :hosted-clay.handlers.notebooks/delete
+ {:datasource     #ig/ref :hosted-clay.db/migrator
+  :sprites-client #ig/ref :hosted-clay.sprites/client}
+
+ :hosted-clay.handlers.notebooks/open
+ {:datasource     #ig/ref :hosted-clay.db/migrator
+  :sprites-client #ig/ref :hosted-clay.sprites/client}
+
+ :hosted-clay.handlers.notebooks/open-root {}
+
+ :hosted-clay.handlers/share
+ {:datasource     #ig/ref :hosted-clay.db/migrator
+  :sprites-client #ig/ref :hosted-clay.sprites/client}
+
+ :hosted-clay.handlers/share-root {}
+
+ ;; ---------- background work ----------
+
+ :hosted-clay/scheduler
+ {:datasource        #ig/ref :hosted-clay.db/migrator
+  :sprites-client    #ig/ref :hosted-clay.sprites/client
+  :email             #ig/ref :hosted-clay/email
+  :base-url          #ig/ref :hosted-clay/base-url
+  :max-sprites       #ig/ref :hosted-clay/max-sprites
+  :pool-target       2
+  :warn-after-days   23
+  :delete-after-days 30}}

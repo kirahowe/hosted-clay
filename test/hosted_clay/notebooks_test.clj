@@ -1,0 +1,103 @@
+(ns hosted-clay.notebooks-test
+  "Notebook domain tests. The Sprites API edge is stubbed with
+   with-redefs — these tests are about our orchestration (pool claim,
+   one-per-user, lifecycle bookkeeping), not the wire."
+  (:require [clojure.test :refer [deftest is testing]]
+            [hosted-clay.db.crud :as crud]
+            [hosted-clay.notebooks :as notebooks]
+            [hosted-clay.pool :as pool]
+            [hosted-clay.sprites.client :as sprites]
+            [hosted-clay.sprites.provision :as provision]
+            [hosted-clay.test-system :as ts]
+            [hosted-clay.users :as users])
+  (:import (java.time Duration Instant)))
+
+(def client {:api-url "https://api.example.invalid" :token {:value "t"}})
+(def limits {:max-sprites 10})
+
+(defn- stub-sprites [f]
+  (let [deleted (atom [])]
+    (with-redefs [sprites/create-sprite! (fn [_ name] {:name name :url (str "https://" name ".sprites.test")})
+                  sprites/delete-sprite! (fn [_ name] (swap! deleted conj name))
+                  provision/provision!   (fn [_ _])]
+      (f deleted))))
+
+(defn- make-user [ds]
+  (users/provision! ds {:provider "hanko" :provider-subject (str (random-uuid))
+                        :email (str (random-uuid) "@example.com")}))
+
+(deftest create-from-empty-pool
+  (ts/with-db
+    (fn [ds]
+      (stub-sprites
+       (fn [_]
+         (let [user (make-user ds)
+               nb   (notebooks/create! ds client limits (:users/id user) "My notebook")]
+           (is (= "My notebook" (:notebooks/title nb)))
+           (is (seq (:notebooks/share-token nb)))
+           (is (= nb (notebooks/by-share-token ds (:notebooks/share-token nb))))
+
+           (testing "second create reports the existing notebook"
+             (is (= ::notebooks/already-exists
+                    (notebooks/create! ds client limits (:users/id user) "Another"))))))))))
+
+(deftest create-claims-warm-sprite
+  (ts/with-db
+    (fn [ds]
+      (stub-sprites
+       (fn [_]
+         (crud/create! ds :sprite-pool {:sprite-name "nb-warm"
+                                        :sprite-url  "https://nb-warm.sprites.test"
+                                        :state       "ready"})
+         (let [user (make-user ds)
+               nb   (notebooks/create! ds client limits (:users/id user) "T")]
+           (is (= "nb-warm" (:notebooks/sprite-name nb)))
+           (is (zero? (crud/count-rows ds :sprite-pool)) "pool sprite was claimed")))))))
+
+(deftest create-respects-budget-cap
+  (ts/with-db
+    (fn [ds]
+      (stub-sprites
+       (fn [_]
+         (let [user (make-user ds)]
+           (is (thrown-with-msg? clojure.lang.ExceptionInfo #"budget"
+                                 (notebooks/create! ds client {:max-sprites 0}
+                                                    (:users/id user) "T")))))))))
+
+(deftest delete-removes-sprite-then-row
+  (ts/with-db
+    (fn [ds]
+      (stub-sprites
+       (fn [deleted]
+         (let [user (make-user ds)
+               nb   (notebooks/create! ds client limits (:users/id user) "T")]
+           (notebooks/delete! ds client nb)
+           (is (= [(:notebooks/sprite-name nb)] @deleted))
+           (is (nil? (notebooks/by-id ds (:notebooks/id nb))))))))))
+
+(deftest touch-throttles-and-clears-warning
+  (ts/with-db
+    (fn [ds]
+      (stub-sprites
+       (fn [_]
+         (let [user (make-user ds)
+               nb   (notebooks/create! ds client limits (:users/id user) "T")]
+           (testing "a just-created notebook isn't re-touched"
+             (is (nil? (notebooks/touch! ds nb))))
+
+           (testing "a stale notebook is touched and its warning cleared"
+             (let [old (str (.minus (Instant/now) (Duration/ofDays 25)))]
+               (crud/update! ds :notebooks (:notebooks/id nb)
+                             {:last-accessed-at old :warned-at (crud/now)})
+               (let [touched (notebooks/touch! ds (notebooks/by-id ds (:notebooks/id nb)))]
+                 (is (some? touched))
+                 (is (nil? (:notebooks/warned-at touched))))))))))))
+
+(deftest pool-claim-is-exclusive
+  (ts/with-db
+    (fn [ds]
+      (crud/create! ds :sprite-pool {:sprite-name "nb-1"
+                                     :sprite-url "https://nb-1.sprites.test"
+                                     :state "ready"})
+      (is (= "nb-1" (:sprite-name (pool/claim! ds))))
+      (is (nil? (pool/claim! ds))))))

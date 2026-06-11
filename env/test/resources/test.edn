@@ -1,0 +1,13 @@
+{:hosted-clay.concerns/http-kit {:opts {:port 0}}
+
+ :hosted-clay.db/datasource {:db-path "target/test/hosted-clay.db"}
+
+ ;; No Hanko in tests: with no api-url the JWKS URL points nowhere and
+ ;; every token verification fails, i.e. all non-public routes 401/303.
+ ;; Tests that need an authenticated user provision one directly.
+ :hosted-clay.auth/middleware {}
+
+ :hosted-clay.sprites/client {:token #secret "test-token"}
+
+ ;; No background work during tests.
+ :hosted-clay/scheduler {:pool-target 0 :tick-ms 3600000}}

@@ -1,0 +1,15 @@
+target/
+.cpcache/
+.clj-kondo/.cache/
+.lsp/
+.calva/
+.nrepl-port
+.portal/
+*.log
+*.db
+*.db-shm
+*.db-wal
+.envrc
+.env
+.env.local
+.DS_Store

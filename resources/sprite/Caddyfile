@@ -1,0 +1,19 @@
+{
+	auto_https off
+}
+
+# The sprite's URL routes to 8080 (the caddy service's http_port).
+# /edit/* is the code-server editor, everything else is the Clay-rendered
+# notebook. handle_path strips the /edit prefix; code-server is built to
+# live behind exactly this kind of proxy.
+:8080 {
+	redir /edit /edit/ 308
+
+	handle_path /edit/* {
+		reverse_proxy 127.0.0.1:8443
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:1971
+	}
+}
