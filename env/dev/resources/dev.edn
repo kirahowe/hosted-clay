@@ -1,6 +1,6 @@
-{:hosted-clay.concerns/http-kit {:opts {:port 3000}}
+{:hosted-clay.concerns/http-kit {:opts {:port 4000}}
 
- :hosted-clay/base-url "http://localhost:3000"
+ :hosted-clay/base-url "http://localhost:4000"
 
  ;; Point at your own (free-tier) Hanko Cloud project: dashboard → API URL.
  ;; The auth middleware derives the JWKS URL (base + /.well-known/jwks.json)
