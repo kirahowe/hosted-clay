@@ -21,6 +21,20 @@
     (let [html "<script>location.assign('http://localhost:'+clay_port);</script>"]
       (is (str/includes? (fix-clay-reload html) "location.assign(location.pathname)"))))
 
+  (testing "the /counter staleness poll is made prefix-relative"
+    ;; root-absolute /counter resolves to the control-plane root through
+    ;; our /n/:id/ prefix -> 404 -> empty body -> JSON.parse throws.
+    (let [html "<script>const r = await fetch('/counter'); r.json();</script>"
+          out  (fix-clay-reload html)]
+      (is (str/includes? out "fetch('counter')"))
+      (is (not (str/includes? out "fetch('/counter')")))))
+
+  (testing "the header logo path is made prefix-relative"
+    (let [html "<img src=\"/Clay.svg.png\" alt=\"Clay logo\">"
+          out  (fix-clay-reload html)]
+      (is (str/includes? out "src=\"Clay.svg.png\""))
+      (is (not (str/includes? out "src=\"/Clay.svg.png\"")))))
+
   (testing "a page without Clay's snippet (e.g. code-server) is untouched"
     (let [html "<html><head></head><body>editor with a ws://localhost:9 mention</body></html>"]
       (is (= html (fix-clay-reload html))))))

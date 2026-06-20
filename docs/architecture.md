@@ -43,7 +43,13 @@ work), installed by `resources/sprite/setup.sh` over the exec WebSocket:
 - One JVM (`clojure -M:watch`, see `resources/sprite/watch.clj`):
   nREPL on localhost:1339 for Calva + Clay in live-reload mode.
 - code-server with Calva, `--auth none` — it is only reachable through
-  the authenticated proxy.
+  the authenticated proxy. Calva is configured (baked-in `settings.json`)
+  with clojure-lsp-on-start disabled and jack-in versions pinned: on a
+  constrained free sprite, clojure-lsp indexing the Noj classpath and
+  Calva's `find-versions` resolution otherwise saturate the CPU on first
+  editor open, stalling saves and Clay's live-reload WebSocket. The
+  save -> live-reload MVP loop needs neither; a future REPL connect is
+  unaffected (lsp is static analysis, independent of nREPL).
 - Services are registered with the sprite runtime, so a cold boot
   restarts them; a warm wake resumes the running JVM in place.
 

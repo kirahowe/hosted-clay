@@ -77,19 +77,33 @@
   (some-> (get headers "content-type") str/lower-case (str/includes? "text/html")))
 
 (defn- fix-clay-reload
-  "Clay bakes its own host:port into the live-reload page
-   (`ws://localhost:<clay-port>`, a port that is never our origin), so
-   the browser would dial its own machine instead of reaching the sprite
-   through us. Rewrite the socket (and the multi-page fallback redirect)
-   to be same-origin so our relay carries it to the sprite's Clay. These
-   target Clay's exact snippet, so they're a no-op on any other page.
-   Fixes both the owner workspace and the share view."
+  "Clay's live-reload page is written for a direct `localhost:<clay-port>`
+   origin; served through our `/n/:id/` prefix several of its URLs point
+   at the wrong place. Rewrite them to be same-origin / prefix-relative so
+   they reach the sprite's Clay through our proxy:
+
+     - the live-reload WebSocket (`ws://localhost:<port>`) -> same-origin
+       wss/ws on the current path;
+     - the multi-page fallback redirect -> the current path;
+     - the `/counter` staleness poll and the `/Clay.svg.png` header logo,
+       both root-absolute, -> page-relative so they resolve under the
+       notebook prefix. (A 404 on `/counter` returns an empty body, which
+       Clay then feeds to `JSON.parse` on every page load — and the dead
+       poll silently disables the on-load staleness check that catches a
+       save landing while the page is still loading.)
+
+   Each targets Clay's exact snippet, so it's a no-op on any other page.
+   Fixes both the owner workspace and the share view. Assumes the
+   single-page notebook layout (the MVP); a multi-page book would need the
+   notebook-root prefix, not a page-relative URL."
   [html]
   (-> html
       (str/replace "new WebSocket('ws://localhost:'+clay_port)"
                    "new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+location.pathname)")
       (str/replace "location.assign('http://localhost:'+clay_port)"
-                   "location.assign(location.pathname)")))
+                   "location.assign(location.pathname)")
+      (str/replace "fetch('/counter')" "fetch('counter')")
+      (str/replace "\"/Clay.svg.png\"" "\"Clay.svg.png\"")))
 
 ;; ---------- plain HTTP ----------
 
@@ -159,6 +173,15 @@
         (log/debug t "sprite websocket error")
         (http-server/close browser-ch)))))
 
+(def ^:private upstream-connect-timeout-secs
+  ;; The browser's HTTP request to the page already succeeded before any
+  ;; WebSocket upgrade, so the sprite is awake and this connect is a fast
+  ;; internal hop — seconds, not tens of seconds. Cap it tightly: a
+  ;; browser-side socket that retries (code-server reconnecting every few
+  ;; seconds) spawns one upstream connect per attempt, and a long timeout
+  ;; lets failed attempts pile up and starve HTTP forwarding.
+  10)
+
 (defn- connect-upstream
   "Open the sprite-side WebSocket. Returns the WebSocket; throws on
    failure (which surfaces as the browser channel closing)."
@@ -171,7 +194,7 @@
                   builder)]
     (-> builder
         (.buildAsync (URI/create url) (downstream-listener browser-ch))
-        (.get 30 TimeUnit/SECONDS))))
+        (.get upstream-connect-timeout-secs TimeUnit/SECONDS))))
 
 (defn- relay-websocket [client sprite-url path req]
   (let [url      (ws-url sprite-url path (:query-string req))

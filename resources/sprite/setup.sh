@@ -26,6 +26,32 @@ if ! command -v code-server >/dev/null 2>&1; then
 fi
 code-server --install-extension betterthantomorrow.calva
 
+# Quiet Calva down for a constrained free sprite. The MVP loop is
+# save -> Clay live-reload; it needs neither clojure-lsp nor Calva
+# jack-in, both of which otherwise saturate the CPU on first editor open
+# (clojure-lsp indexes the whole Noj classpath; jack-in shells out
+# `clojure -X:deps find-versions`, dragging down the Maven tooling tree).
+# That saturation is what stalls saves and Clay's live-reload WebSocket.
+# Disabling lsp-on-start keeps Calva's editing + a future REPL connect
+# intact (lsp is static analysis, independent of nREPL); pinning the
+# jack-in versions stops the "latest version" resolution.
+mkdir -p /home/sprite/.local/share/code-server/User
+cat > /home/sprite/.local/share/code-server/User/settings.json <<'EOF'
+{
+  "calva.enableClojureLspOnStart": "never",
+  "calva.jackInDependencyVersions": {
+    "nrepl": "1.7.0",
+    "cider-nrepl": "0.59.0",
+    "cider/piggieback": "0.6.1"
+  },
+  "editor.formatOnSave": false,
+  "files.autoSave": "off",
+  "telemetry.telemetryLevel": "off",
+  "extensions.autoCheckUpdates": false,
+  "update.mode": "none"
+}
+EOF
+
 # --- Java: Temurin ships via SDKMAN, which needs sourcing. Resolve it once
 # and pin JAVA_HOME into an env file the services source, so they don't
 # depend on shell profile behaviour.
@@ -72,6 +98,15 @@ chmod +x /home/sprite/notebook/bin/*.sh
 source /home/sprite/notebook/bin/env.sh
 cd /home/sprite/notebook
 clojure -P -M:watch
+
+# Pre-warm the tools.deps machinery Calva's jack-in version check shells
+# out to (`clojure -X:deps find-versions`). The artifacts it needs aren't
+# pulled by the prefetch above, so without this the first editor open
+# triggers a Maven download storm on top of everything else. Best-effort:
+# a metadata hiccup must not fail provisioning.
+for lib in nrepl/nrepl cider/cider-nrepl cider/piggieback; do
+  clojure -X:deps find-versions :lib "$lib" :n 1 >/dev/null 2>&1 || true
+done
 
 # --- Services: owned by the sprite runtime, restarted on cold boot.
 # caddy gets the http_port, so the sprite URL routes to it.
