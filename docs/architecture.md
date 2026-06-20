@@ -18,12 +18,20 @@ hiccup), state in file-backed SQLite on a Fly volume. It owns:
 - **Warm pool** — the scheduler keeps `pool-target` provisioned sprites
   ready so "New notebook" is instant. A budget cap (`max-sprites`)
   bounds total spend.
+- **Workspace** — the editing page at `/notebooks/:id`
+  (`hosted-clay.ui.pages.workspace`) puts the code-server editor and the
+  live Clay output side by side, as two same-origin iframes onto the
+  owner proxy. Saving in the editor re-renders the output via Clay's
+  live-reload. The dashboard's "Open notebook" link and a new notebook's
+  post-create redirect both land here.
 - **Proxy** — all browser traffic to a notebook flows through the
   control plane (`hosted-clay.proxy`): sprite URLs stay on Sprites' own
   auth and the proxy attaches the org API token. Owner traffic
-  (`/n/:id/*`, all methods + WebSockets) is gated on ownership; share
-  traffic (`/s/:token/*`) is GET/HEAD only and `/edit/*` is blocked, so
-  a share link can never reach the editor.
+  (`/n/:id/*`, all methods + WebSockets) is gated on ownership and has
+  its framing headers (`X-Frame-Options`, CSP `frame-ancestors`)
+  stripped so it can be embedded in the workspace iframes; share traffic
+  (`/s/:token/*`) is GET/HEAD only, keeps its framing headers, and
+  `/edit/*` is blocked, so a share link can never reach the editor.
 
 ## Notebook sprite
 

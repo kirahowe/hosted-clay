@@ -4,19 +4,22 @@
 (defn page
   "Wraps `body` in a complete HTML document with the standard head and
    stylesheets. `body` is a hiccup form that becomes the contents of
-   <body>."
-  [title body]
-  (str "<!DOCTYPE html>\n"
-       (h/html
-        {:mode :html}
-        [:html {:lang "en"}
-         [:head
-          [:meta {:charset "utf-8"}]
-          [:meta {:name "viewport" :content "width=device-width, initial-scale=1"}]
-          [:title title]
-          [:link {:rel "stylesheet" :href "/static/css/tokens.css"}]
-          [:link {:rel "stylesheet" :href "/static/css/main.css"}]]
-         [:body body]])))
+   <body>. The optional opts map may supply extra `:head` hiccup (e.g. a
+   page-specific stylesheet) and a `:body-class`."
+  ([title body] (page title body nil))
+  ([title body {:keys [head body-class]}]
+   (str "<!DOCTYPE html>\n"
+        (h/html
+         {:mode :html}
+         [:html {:lang "en"}
+          [:head
+           [:meta {:charset "utf-8"}]
+           [:meta {:name "viewport" :content "width=device-width, initial-scale=1"}]
+           [:title title]
+           [:link {:rel "stylesheet" :href "/static/css/tokens.css"}]
+           [:link {:rel "stylesheet" :href "/static/css/main.css"}]
+           head]
+          [:body {:class body-class} body]]))))
 
 (defn site-header
   "The shared header: wordmark plus nav links."

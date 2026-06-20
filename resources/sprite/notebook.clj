@@ -2,7 +2,7 @@
 ;;
 ;; This file is a regular Clojure namespace. Clay renders it: comments
 ;; like this one become prose, and the value of each top-level form is
-;; displayed below it. Edit the source in the editor tab — every save
+;; displayed below it. Edit the source in the editor — every save
 ;; re-renders this page.
 
 (ns notebook

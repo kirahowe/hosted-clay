@@ -89,15 +89,19 @@ if ! sprite-env services get code-server >/dev/null 2>&1; then
     --cmd /home/sprite/notebook/bin/code-server.sh --no-stream
 fi
 
-# --- Readiness: a pool sprite is only useful once Clay is actually
-# serving, so wait for the first render rather than reporting early.
+# --- Readiness: a pool sprite is only useful once the whole stack is
+# serving, so wait for Clay (the slow JVM start) and code-server before
+# reporting, then confirm both routes answer through Caddy.
 for _ in $(seq 1 120); do
-  if curl -fsS -o /dev/null http://127.0.0.1:1971/; then
+  if curl -fsS -o /dev/null http://127.0.0.1:1971/ \
+     && curl -fsS -o /dev/null http://127.0.0.1:8443/; then
     break
   fi
   sleep 2
 done
 curl -fsS -o /dev/null http://127.0.0.1:1971/
+curl -fsS -o /dev/null http://127.0.0.1:8443/
 curl -fsS -o /dev/null http://127.0.0.1:8080/
+curl -fsS -o /dev/null http://127.0.0.1:8080/edit/
 
 echo provisioned

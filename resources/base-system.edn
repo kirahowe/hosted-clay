@@ -25,6 +25,7 @@
    ["/static/*"             {:public? true :handler #ig/ref :hosted-clay.handlers/static}]
    ["/dashboard"            {:get  {:handler #ig/ref :hosted-clay.handlers/dashboard}}]
    ["/notebooks"            {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/create}}]
+   ["/notebooks/:id"        {:get  {:handler #ig/ref :hosted-clay.handlers.notebooks/workspace}}]
    ["/notebooks/:id/delete" {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/delete}}]
    ;; The owner proxy takes every method (and WebSocket upgrades); the
    ;; share proxy is read-only and enforces that itself.
@@ -82,6 +83,10 @@
  {:datasource     #ig/ref :hosted-clay.db/migrator
   :sprites-client #ig/ref :hosted-clay.sprites/client
   :max-sprites    #ig/ref :hosted-clay/max-sprites}
+
+ :hosted-clay.handlers.notebooks/workspace
+ {:datasource #ig/ref :hosted-clay.db/migrator
+  :base-url   #ig/ref :hosted-clay/base-url}
 
  :hosted-clay.handlers.notebooks/delete
  {:datasource     #ig/ref :hosted-clay.db/migrator

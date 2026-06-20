@@ -28,9 +28,13 @@
      [:h2 (:notebooks/title notebook)]
      [:dl
       [:dt "Open"]
-      [:dd [:a {:href (str "/n/" id "/")} "Rendered notebook"]
-       " · "
-       [:a {:href (str "/n/" id "/edit/")} "Editor"]]
+      [:dd
+       [:p [:a {:href (str "/notebooks/" id)} "Open notebook"]
+        " — edit the source and see the rendered output side by side."]
+       [:p.muted
+        [:a {:href (str "/n/" id "/edit/")} "Editor only"]
+        " · "
+        [:a {:href (str "/n/" id "/")} "Rendered view only"]]]
       [:dt "Share"]
       [:dd [:a {:href share-url} [:code share-url]]
        [:p.muted "Anyone with this link can view the rendered notebook (read-only)."]]

@@ -4,7 +4,11 @@
    over a real socket."
   (:require [clojure.test :refer [deftest is testing]]
             [org.httpkit.server :as http-kit]
-            [hosted-clay.test-system :as ts])
+            [hosted-clay.notebooks :as notebooks]
+            [hosted-clay.sprites.client :as sprites]
+            [hosted-clay.sprites.provision :as provision]
+            [hosted-clay.test-system :as ts]
+            [hosted-clay.users :as users])
   (:import (java.net URI)
            (java.net.http HttpClient HttpRequest HttpResponse$BodyHandlers)))
 
@@ -46,6 +50,11 @@
           (let [{:keys [status]} (handler {:request-method :get :uri "/n/some-id/"})]
             (is (= 303 status))))
 
+        (testing "the workspace page requires a session"
+          (let [{:keys [status headers]} (handler {:request-method :get :uri "/notebooks/some-id"})]
+            (is (= 303 status))
+            (is (= "/login" (get headers "location")))))
+
         (testing "creating a notebook without a session is a 401, not a redirect"
           (let [{:keys [status]} (handler {:request-method :post :uri "/notebooks"})]
             (is (= 401 status))))
@@ -62,6 +71,34 @@
         (testing "unknown routes return 404"
           (let [{:keys [status]} (handler {:request-method :get :uri "/no-such-route"})]
             (is (= 404 status))))))))
+
+(def ^:private test-client {:api-url "https://api.example.invalid" :token {:value "t"}})
+
+(deftest workspace-renders-for-owner-only
+  (ts/with-system [:hosted-clay.handlers.notebooks/workspace]
+    (fn [system]
+      (let [ds      (:hosted-clay.db/migrator system)
+            handler (:hosted-clay.handlers.notebooks/workspace system)]
+        (with-redefs [sprites/create-sprite! (fn [_ name] {:name name :url (str "https://" name ".sprites.test")})
+                      provision/provision!   (fn [_ _])]
+          (let [user (users/provision! ds {:provider         "hanko"
+                                           :provider-subject (str (random-uuid))
+                                           :email            (str (random-uuid) "@example.com")})
+                nb   (notebooks/create! ds test-client {:max-sprites 10} (:users/id user) "My notebook")
+                id   (:notebooks/id nb)]
+
+            (testing "the owner gets a split-view page embedding the editor and output"
+              (let [{:keys [status body]} (handler {:user-id     (:users/id user)
+                                                    :path-params {:id id}})]
+                (is (= 200 status))
+                (is (re-find #"<iframe" body))
+                (is (re-find (re-pattern (str "/n/" id "/edit/")) body))
+                (is (re-find (re-pattern (str "/n/" id "/\"")) body))))
+
+            (testing "a non-owner gets a 404, not a 403 (ids stay unprobeable)"
+              (let [{:keys [status]} (handler {:user-id     "someone-else"
+                                               :path-params {:id id}})]
+                (is (= 404 status))))))))))
 
 (deftest end-to-end-server-binds-and-serves
   (ts/with-system [:hosted-clay.concerns/http-kit]

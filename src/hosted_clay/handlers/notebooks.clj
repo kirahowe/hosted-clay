@@ -5,6 +5,7 @@
             [integrant.core :as ig]
             [hosted-clay.notebooks :as notebooks]
             [hosted-clay.proxy :as proxy]
+            [hosted-clay.ui.pages.workspace :as workspace]
             [hosted-clay.web.response :as response]))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/create
@@ -25,7 +26,18 @@
         ::at-capacity (response/html 503
                                      (str "We're at capacity right now — no new notebooks "
                                           "can be created. Please try again later."))
-        (response/see-other (str "/n/" (:notebooks/id result) "/"))))))
+        (response/see-other (str "/notebooks/" (:notebooks/id result)))))))
+
+(defmethod ig/init-key :hosted-clay.handlers.notebooks/workspace
+  [_ {:keys [datasource base-url]}]
+  ;; The editing workspace page: editor and live output side by side.
+  ;; Ownership-gated like the proxy, and a miss is a 404 (not a 403) for
+  ;; the same reason — notebook ids stay unprobeable.
+  (fn [req]
+    (let [notebook (notebooks/by-id datasource (get-in req [:path-params :id]))]
+      (if (and notebook (notebooks/owned-by? notebook (:user-id req)))
+        (response/html (workspace/render notebook base-url))
+        (response/not-found "No such notebook.")))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/delete
   [_ {:keys [datasource sprites-client]}]
@@ -49,7 +61,8 @@
             (proxy/forward sprites-client
                            (:notebooks/sprite-url notebook)
                            (get-in req [:path-params :path])
-                           req))
+                           req
+                           {:strip-framing? true}))
         (response/not-found "No such notebook.")))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/open-root [_ _]

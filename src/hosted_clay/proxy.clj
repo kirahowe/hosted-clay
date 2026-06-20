@@ -51,12 +51,49 @@
        (map (fn [[k v]] [(name k) v]))
        (into {})))
 
+(def ^:private framing-headers
+  ;; X-Frame-Options / a CSP frame-ancestors from code-server or Clay
+  ;; would stop the page being embedded in our same-origin workspace
+  ;; iframes. We drop them on owner traffic only — the owner framing
+  ;; their own VM in their own session, where clickjacking is meaningless
+  ;; — so the public share view keeps its protection (see `forward`).
+  #{"x-frame-options" "content-security-policy"})
+
+(defn- strip-framing [headers]
+  (into {} (remove (fn [[k _]] (contains? framing-headers (str/lower-case k))) headers)))
+
 (defn- target-url [sprite-url path query-string]
   (str sprite-url "/" path (when query-string (str "?" query-string))))
 
+;; ---------- Clay live-reload fixup ----------
+
+(defn- editor-path? [path]
+  ;; code-server lives under /edit/*; its traffic is left completely
+  ;; untouched (not even buffered) — its own socket is already
+  ;; same-origin and must not be rewritten.
+  (str/starts-with? (str path) "edit"))
+
+(defn- html-response? [headers]
+  (some-> (get headers "content-type") str/lower-case (str/includes? "text/html")))
+
+(defn- fix-clay-reload
+  "Clay bakes its own host:port into the live-reload page
+   (`ws://localhost:<clay-port>`, a port that is never our origin), so
+   the browser would dial its own machine instead of reaching the sprite
+   through us. Rewrite the socket (and the multi-page fallback redirect)
+   to be same-origin so our relay carries it to the sprite's Clay. These
+   target Clay's exact snippet, so they're a no-op on any other page.
+   Fixes both the owner workspace and the share view."
+  [html]
+  (-> html
+      (str/replace "new WebSocket('ws://localhost:'+clay_port)"
+                   "new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+location.pathname)")
+      (str/replace "location.assign('http://localhost:'+clay_port)"
+                   "location.assign(location.pathname)")))
+
 ;; ---------- plain HTTP ----------
 
-(defn- forward-http [client sprite-url path req]
+(defn- forward-http [client sprite-url path req strip-framing?]
   (let [url  (target-url sprite-url path (:query-string req))
         {:keys [status headers body error]}
         @(http-client/request {:method           (:request-method req)
@@ -70,9 +107,15 @@
           {:status  502
            :headers {"content-type" "text/plain"}
            :body    "The notebook environment did not answer. It may still be waking up — try again."})
-      {:status  status
-       :headers (forward-response-headers headers)
-       :body    body})))
+      (let [resp-headers (cond-> (forward-response-headers headers)
+                           strip-framing? strip-framing)]
+        (if (and body (not (editor-path? path)) (html-response? resp-headers))
+          {:status  status
+           :headers resp-headers
+           :body    (fix-clay-reload (slurp body :encoding "UTF-8"))}
+          {:status  status
+           :headers resp-headers
+           :body    body})))))
 
 ;; ---------- WebSocket relay ----------
 
@@ -162,8 +205,12 @@
 (defn forward
   "Forward `req` to `sprite-url`, replacing the request path with
    `path` (the wildcard remainder of the matched route). Detects and
-   relays WebSocket upgrades."
-  [client sprite-url path req]
-  (if (websocket-upgrade? req)
-    (relay-websocket client sprite-url path req)
-    (forward-http client sprite-url path req)))
+   relays WebSocket upgrades. With `:strip-framing? true`, drops the
+   response's framing headers so the page can be embedded in our
+   same-origin workspace iframes — owner traffic only; the share view
+   forwards without it so its clickjacking protection stands."
+  ([client sprite-url path req] (forward client sprite-url path req nil))
+  ([client sprite-url path req {:keys [strip-framing?]}]
+   (if (websocket-upgrade? req)
+     (relay-websocket client sprite-url path req)
+     (forward-http client sprite-url path req strip-framing?))))
