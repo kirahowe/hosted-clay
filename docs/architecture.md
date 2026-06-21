@@ -50,18 +50,31 @@ work), installed by `resources/sprite/setup.sh` over the exec WebSocket:
 - One JVM (`clojure -M:watch`, see `resources/sprite/watch.clj`):
   nREPL on localhost:1339 for Calva + Clay in live-reload mode. `watch.clj`
   writes an `.nrepl-port` file after the server binds so Calva can find it.
-- code-server with Calva, `--auth none` — it is only reachable through
-  the authenticated proxy. Calva is configured (baked-in `settings.json`)
-  with clojure-lsp-on-start disabled and jack-in versions pinned: on a
-  constrained free sprite, clojure-lsp indexing the Noj classpath and
-  Calva's `find-versions` resolution otherwise saturate the CPU on first
-  editor open, stalling saves and Clay's live-reload WebSocket. Neither is
-  needed: the primary loop is save -> Clay live-reload, and the REPL is
-  *connected* (not jacked-in) — `calva.autoConnectRepl` picks up the
-  `.nrepl-port` file and attaches to the running nREPL on open. Eval
-  results surface inline in the editor; the rendered pane only changes on
-  save, so the two don't fight. (clojure-lsp is static analysis,
-  independent of the running REPL.)
+- code-server with Calva, `--auth none` — only reachable through the
+  authenticated proxy. It launches on the notebook **folder** (a single
+  positional, so it opens as a real workspace — Calva's project detection
+  needs that), shaped into a focused single-file editor by a baked
+  `settings.json`:
+  - **Calva quieted** — clojure-lsp-on-start off, jack-in versions pinned.
+    On a constrained free sprite, lsp classpath indexing + `find-versions`
+    otherwise peg the CPU and stall saves and the live-reload WebSocket.
+    Neither is needed (the primary loop is save -> Clay live-reload).
+  - **REPL connected, not jacked-in** — a `replConnectSequences` entry
+    auto-connects to the already-running nREPL with no prompts, and
+    `bin/wait-repl.sh` gates code-server's launch until the nREPL port is
+    up (Calva's auto-connect is a one-shot check at activation, with no
+    retry). Eval results surface inline; the rendered pane only changes on
+    save, so they don't fight. (clojure-lsp is static analysis, independent
+    of the REPL.)
+  - **Focused chrome** — activity bar + minimap hidden, AI/agent surface
+    off, scaffolding hidden from the explorer (`files.exclude`) and Quick
+    Open (`search.exclude`); the sidebar is collapsed on startup by a small
+    first-party extension (no setting exists for it). The terminal is kept.
+  - **Auto-open** — `.vscode/tasks.json` `folderOpen` tasks open
+    `notebook.clj` and an interactive terminal; the editor iframe also
+    carries `?folder=` to pin the workspace from the browser side.
+  Several of these are out-of-band workarounds because code-server doesn't
+  expose the initial layout as configuration — see "Deliberate deviations".
 - Services are registered with the sprite runtime, so a cold boot
   restarts them; a warm wake resumes the running JVM in place.
 
@@ -76,10 +89,12 @@ this implementation assumes:
    real sprite.
 2. **Private sprite URL auth** — the proxy assumes a sprite URL with
    default ("sprite") auth accepts `Authorization: Bearer <org token>`.
-3. **Clay options** — `watch.clj` uses Clay ≥ 2.0 with `:live-reload`;
-   the rendered page's reload socket path must survive the `/n/:id`
-   path prefix (Clay uses relative URLs, as does code-server, but
-   confirm).
+3. **Clay's reload URLs behind the prefix** — confirmed Clay 2.0 bakes
+   `localhost:<port>` + root-absolute URLs (the reload socket, `/counter`,
+   `/Clay.svg.png`) into the page, which do NOT survive the `/n/:id`
+   prefix; `proxy/fix-clay-reload` rewrites them to same-origin/relative.
+   Upstreaming this to Clay would let us drop the rewrite — see
+   `docs/clay-reverse-proxy-proposal.md`.
 4. **SDKMAN java path inside the sprite base image** — setup.sh probes
    for it and fails loudly if the probe misses.
 
@@ -94,3 +109,14 @@ this implementation assumes:
   revisit if cold boots turn out to be common.
 - **Proxy buffers bodies** (http-kit client semantics). Notebook pages
   and editor assets are small-to-medium; fine at MVP scale.
+- **code-server bent into a focused editor via out-of-band glue.** Setting
+  the initial layout (open file, hidden sidebar, open terminal) and a
+  prompt-less REPL connect aren't expressible as code-server configuration,
+  so we use a launch gate (`bin/wait-repl.sh`), `folderOpen` tasks, and a
+  tiny first-party sidebar extension. Each is defensible for the MVP, but if
+  "focused notebook editor" stays the product the durable path is our own
+  thin VS Code **workbench host** — set
+  `IWorkbenchConstructionOptions.defaultLayout` directly, keeping the
+  server + Calva + REPL and replacing only the front-end bootstrap. Parked;
+  start with a `defaultLayout` patch on code-server's bootstrap before a
+  full custom host.
