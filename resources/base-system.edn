@@ -27,8 +27,10 @@
    ["/dashboard"            {:get  {:handler #ig/ref :hosted-clay.handlers/dashboard}}]
    ["/notebooks"            {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/create}}]
    ["/notebooks/:id"        {:get  {:handler #ig/ref :hosted-clay.handlers.notebooks/workspace}}]
+   ["/notebooks/:id/status"  {:get  {:handler #ig/ref :hosted-clay.handlers.notebooks/status}}]
    ["/notebooks/:id/delete"  {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/delete}}]
    ["/notebooks/:id/restart" {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/restart}}]
+   ["/notebooks/:id/retry"   {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/retry}}]
    ;; The owner proxy takes every method (and WebSocket upgrades); the
    ;; share proxy is read-only and enforces that itself.
    ["/n/:id"                {:get {:handler #ig/ref :hosted-clay.handlers.notebooks/open-root}}]
@@ -90,6 +92,13 @@
  :hosted-clay.handlers.notebooks/workspace
  {:datasource #ig/ref :hosted-clay.db/migrator
   :base-url   #ig/ref :hosted-clay/base-url}
+
+ :hosted-clay.handlers.notebooks/status
+ {:datasource #ig/ref :hosted-clay.db/migrator}
+
+ :hosted-clay.handlers.notebooks/retry
+ {:datasource     #ig/ref :hosted-clay.db/migrator
+  :sprites-client #ig/ref :hosted-clay.sprites/client}
 
  :hosted-clay.handlers.notebooks/delete
  {:datasource     #ig/ref :hosted-clay.db/migrator

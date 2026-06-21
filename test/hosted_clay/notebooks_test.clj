@@ -93,6 +93,44 @@
                  (is (some? touched))
                  (is (nil? (:notebooks/warned-at touched))))))))))))
 
+(deftest provisioning-lifecycle
+  (ts/with-db
+    (fn [ds]
+      (stub-sprites
+       (fn [_]
+         (let [user (make-user ds)
+               nb   (notebooks/create! ds client limits (:users/id user) "T")]
+           (testing "an empty pool yields a provisioning notebook with no sprite yet"
+             (is (= "provisioning" (:notebooks/status nb)))
+             (is (= "" (:notebooks/sprite-url nb))))
+           (testing "finishing provisioning makes it ready with a sprite url"
+             (notebooks/finish-provisioning! ds client nb)
+             (let [done (notebooks/by-id ds (:notebooks/id nb))]
+               (is (= "ready" (:notebooks/status done)))
+               (is (re-find #"sprites.test" (:notebooks/sprite-url done)))))))))))
+
+(deftest provisioning-failure-then-retry
+  (ts/with-db
+    (fn [ds]
+      (let [deleted (atom [])
+            fail?   (atom true)]
+        (with-redefs [sprites/create-sprite! (fn [_ name] {:name name :url (str "https://" name ".sprites.test")})
+                      sprites/delete-sprite! (fn [_ name] (swap! deleted conj name))
+                      provision/provision!   (fn [_ _] (when @fail? (throw (ex-info "boom" {}))))]
+          (let [user (make-user ds)
+                nb   (notebooks/create! ds client limits (:users/id user) "T")]
+            (notebooks/finish-provisioning! ds client nb)
+            (testing "a failed build marks the notebook failed and frees the sprite"
+              (let [failed (notebooks/by-id ds (:notebooks/id nb))]
+                (is (= "failed" (:notebooks/status failed)))
+                (is (= [(:notebooks/sprite-name nb)] @deleted))
+                (testing "retry then a successful build makes it ready"
+                  (reset! fail? false)
+                  (let [reset (notebooks/retry-provisioning! ds failed)]
+                    (is (= "provisioning" (:notebooks/status reset)))
+                    (notebooks/finish-provisioning! ds client reset)
+                    (is (= "ready" (:notebooks/status (notebooks/by-id ds (:notebooks/id nb)))))))))))))))
+
 (deftest pool-claim-is-exclusive
   (ts/with-db
     (fn [ds]

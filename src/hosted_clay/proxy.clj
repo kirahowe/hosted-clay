@@ -12,7 +12,8 @@
             [clojure.tools.logging :as log]
             [org.httpkit.client :as http-client]
             [org.httpkit.server :as http-server]
-            [hosted-clay.sprites.client :as sprites])
+            [hosted-clay.sprites.client :as sprites]
+            [hosted-clay.ui.pages.waking :as waking])
   (:import (java.net URI)
            (java.net.http HttpClient WebSocket WebSocket$Listener)
            (java.nio ByteBuffer)
@@ -107,6 +108,19 @@
 
 ;; ---------- plain HTTP ----------
 
+(defn- wants-html?
+  "True for a top-level document request (the iframe navigating), so we can
+   answer a dead sprite with a styled, self-refreshing page rather than a
+   bare line of text. Sub-resource and API requests get the text fallback."
+  [req]
+  (some-> (get-in req [:headers "accept"]) str/lower-case (str/includes? "text/html")))
+
+(defn- waking-response [req]
+  (if (wants-html? req)
+    {:status 502 :headers {"content-type" "text/html; charset=utf-8"} :body (waking/render)}
+    {:status 502 :headers {"content-type" "text/plain"}
+     :body   "The notebook environment did not answer. It may still be waking up — try again."}))
+
 (defn- forward-http [client sprite-url path req strip-framing?]
   (let [url  (target-url sprite-url path (:query-string req))
         {:keys [status headers body error]}
@@ -118,9 +132,7 @@
                                :follow-redirects false})]
     (if error
       (do (log/warn error "sprite request failed" {:url url})
-          {:status  502
-           :headers {"content-type" "text/plain"}
-           :body    "The notebook environment did not answer. It may still be waking up — try again."})
+          (waking-response req))
       (let [resp-headers (cond-> (forward-response-headers headers)
                            strip-framing? strip-framing)]
         (if (and body (not (editor-path? path)) (html-response? resp-headers))

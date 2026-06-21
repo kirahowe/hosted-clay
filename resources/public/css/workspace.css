@@ -1,5 +1,6 @@
 /* The editing workspace: a full-viewport split of editor and output.
-   Loaded only on /notebooks/:id, on top of tokens.css + main.css. */
+   Loaded only on /notebooks/:id (ready state), on top of tokens.css +
+   main.css. */
 
 html, body.workspace-body { height: 100%; }
 
@@ -18,15 +19,20 @@ body.workspace-body { overflow: hidden; }
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--rule);
+  border-bottom: var(--hairline) solid var(--border);
   background: var(--bg);
-  font-size: 0.9em;
+  font-size: 0.9rem;
 }
+
+.workspace-home { text-decoration: none; white-space: nowrap; }
+.workspace-home:hover { text-decoration: underline; }
 
 .workspace-title {
   flex: 1 1 auto;
   min-width: 0;
-  font-weight: 500;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--fg-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -38,18 +44,21 @@ body.workspace-body { overflow: hidden; }
   gap: var(--space-3);
 }
 
-/* The restart action sits among link-styled actions, so it's a text
-   button rather than the bordered default. */
-.workspace-restart {
+/* Bar actions are text buttons, not the bordered default — they sit in a
+   dense toolbar, not a content flow. */
+.workspace-action {
   font: inherit;
+  font-size: 0.9rem;
   color: inherit;
   background: none;
   border: 0;
+  border-radius: 0;
   padding: 0;
   cursor: pointer;
 }
-.workspace-restart:hover { color: var(--accent); }
-.workspace-restart:disabled { color: var(--muted); cursor: default; }
+.workspace-action:hover { background: none; color: var(--fg); text-decoration: underline; }
+.workspace-action:disabled { color: var(--fg-muted); cursor: default; text-decoration: none; }
+.workspace-action[data-copied="true"] { color: var(--success); text-decoration: none; }
 
 /* The split. The editor pane's width lives in a custom property so the
    divider drag (workspace.js) can update it; the output pane takes the
@@ -81,9 +90,9 @@ body.workspace-body { overflow: hidden; }
 .workspace-divider {
   flex: 0 0 6px;
   cursor: col-resize;
-  background: var(--rule);
+  background: var(--border);
 }
-.workspace-divider:hover { background: var(--accent); }
+.workspace-divider:hover { background: var(--border-strong); }
 
 /* While dragging, let pointer events pass over the iframes so mousemove
    keeps reaching the document instead of being captured by the editor. */

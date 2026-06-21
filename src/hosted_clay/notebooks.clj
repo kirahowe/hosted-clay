@@ -26,49 +26,76 @@
 (defn owned-by? [notebook user-id]
   (= (:notebooks/user-id notebook) user-id))
 
-(defn- acquire-sprite!
-  "A provisioned sprite for a new notebook: the warm pool's if one is
-   ready (instant), otherwise created and provisioned inline (slow path,
-   minutes — the user sees a spinner, not a failure). The budget cap is
-   only checked on the slow path; a pool sprite is already paid for."
-  [ds client {:keys [max-sprites]}]
-  (or (pool/claim! ds)
+(defn- insert-notebook!
+  "Insert a notebook row, returning it; on a lost race with a concurrent
+   create from the same user (the UNIQUE on user_id) release any
+   already-claimed sprite and report ::already-exists instead."
+  [ds client user-id title attrs claimed-sprite-name]
+  (try
+    (crud/create! ds :notebooks
+                  (merge {:user-id          user-id
+                          :title            title
+                          :share-token      (new-share-token)
+                          :last-accessed-at (crud/now)}
+                         attrs))
+    (catch java.sql.SQLException e
+      (if (for-user ds user-id)
+        (do (when claimed-sprite-name
+              (sprites/delete-sprite! client claimed-sprite-name))
+            ::already-exists)
+        (throw e)))))
+
+(defn create!
+  "Create the user's notebook and return its row (or ::already-exists for
+   the one-per-user limit). A warm-pool hit yields a ready notebook
+   immediately; an empty pool yields a 'provisioning' row with no sprite
+   yet — the caller runs `finish-provisioning!` (in the background) to
+   build it. Throws ::budget-exceeded when the slow path would push past
+   `max-sprites`."
+  [ds client {:keys [max-sprites]} user-id title]
+  (if (for-user ds user-id)
+    ::already-exists
+    (if-let [{:keys [sprite-name sprite-url]} (pool/claim! ds)]
+      (insert-notebook! ds client user-id title
+                        {:sprite-name sprite-name
+                         :sprite-url  sprite-url
+                         :status      "ready"}
+                        sprite-name)
       (do
         (when (>= (pool/sprite-count ds) max-sprites)
           (throw (ex-info "sprite budget cap reached" {:type ::budget-exceeded})))
-        (let [sprite-name (pool/new-sprite-name)
-              sprite      (sprites/create-sprite! client sprite-name)]
-          (try
-            (provision/provision! client sprite-name)
-            (catch Throwable t
-              (sprites/delete-sprite! client sprite-name)
-              (throw t)))
-          {:sprite-name sprite-name
-           :sprite-url  (:url sprite)}))))
+        ;; The sprite-url is filled by finish-provisioning!; it's never read
+        ;; while the row is still 'provisioning' (the proxy and workspace
+        ;; both gate on the ready state), so an empty placeholder is safe.
+        (insert-notebook! ds client user-id title
+                          {:sprite-name (pool/new-sprite-name)
+                           :sprite-url  ""
+                           :status      "provisioning"}
+                          nil)))))
 
-(defn create!
-  "Create the user's notebook. Returns the new row, or ::already-exists
-   when the free-tier one-notebook limit is hit (also enforced by the
-   UNIQUE index on notebooks.user_id, which this maps to the same
-   result under a race)."
-  [ds client limits user-id title]
-  (if (for-user ds user-id)
-    ::already-exists
-    (let [{:keys [sprite-name sprite-url]} (acquire-sprite! ds client limits)]
-      (try
-        (crud/create! ds :notebooks {:user-id          user-id
-                                     :title            title
-                                     :sprite-name      sprite-name
-                                     :sprite-url       sprite-url
-                                     :share-token      (new-share-token)
-                                     :last-accessed-at (crud/now)})
-        (catch java.sql.SQLException e
-          ;; Lost a race with another create from the same user: release
-          ;; the sprite we acquired and report the existing notebook.
-          (if (for-user ds user-id)
-            (do (sprites/delete-sprite! client sprite-name)
-                ::already-exists)
-            (throw e)))))))
+(defn finish-provisioning!
+  "Build the sprite for a notebook begun in the 'provisioning' state, then
+   mark it ready. On failure mark it 'failed' and delete any half-built
+   sprite, leaving a row the owner can retry or delete. Meant to run on a
+   background thread; it never throws."
+  [ds client notebook]
+  (let [id          (:notebooks/id notebook)
+        sprite-name (:notebooks/sprite-name notebook)]
+    (try
+      (let [sprite (sprites/create-sprite! client sprite-name)]
+        (provision/provision! client sprite-name)
+        (crud/update! ds :notebooks id {:sprite-url (:url sprite) :status "ready"})
+        (log/info "notebook provisioned" {:notebook-id id}))
+      (catch Throwable t
+        (log/error t "notebook provisioning failed" {:notebook-id id})
+        (try (sprites/delete-sprite! client sprite-name) (catch Throwable _))
+        (crud/update! ds :notebooks id {:status "failed"})))))
+
+(defn retry-provisioning!
+  "Move a failed notebook back to 'provisioning' and return the fresh row,
+   so the caller can run `finish-provisioning!` again."
+  [ds notebook]
+  (crud/update! ds :notebooks (:notebooks/id notebook) {:status "provisioning"}))
 
 (defn delete!
   "Delete a notebook and its sprite. The sprite goes first: if that

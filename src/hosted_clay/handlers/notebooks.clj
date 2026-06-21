@@ -23,22 +23,60 @@
                      (if (= ::notebooks/budget-exceeded (:type (ex-data e)))
                        ::at-capacity
                        (throw e))))]
-      (case result
-        ::notebooks/already-exists (response/see-other "/dashboard")
-        ::at-capacity (response/html 503
-                                     (str "We're at capacity right now — no new notebooks "
-                                          "can be created. Please try again later."))
-        (response/see-other (str "/notebooks/" (:notebooks/id result)))))))
+      (cond
+        (= ::notebooks/already-exists result)
+        (response/see-other "/dashboard")
+
+        (= ::at-capacity result)
+        (response/html 503
+                       (str "We're at capacity right now — no new notebooks "
+                            "can be created. Please try again later."))
+
+        :else
+        (do
+          ;; An empty pool yields a 'provisioning' row; build its sprite off
+          ;; the request thread so the POST returns at once and the workspace
+          ;; page can show progress.
+          (when (= "provisioning" (:notebooks/status result))
+            (future (notebooks/finish-provisioning! datasource sprites-client result)))
+          (response/see-other (str "/notebooks/" (:notebooks/id result))))))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/workspace
   [_ {:keys [datasource base-url]}]
-  ;; The editing workspace page: editor and live output side by side.
-  ;; Ownership-gated like the proxy, and a miss is a 404 (not a 403) for
-  ;; the same reason — notebook ids stay unprobeable.
+  ;; The editing workspace page: editor and live output side by side once
+  ;; the notebook is ready; a progress page while its sprite provisions; an
+  ;; error page if that failed. Ownership-gated like the proxy, and a miss
+  ;; is a 404 (not a 403) so notebook ids stay unprobeable.
   (fn [req]
     (let [notebook (notebooks/by-id datasource (get-in req [:path-params :id]))]
       (if (and notebook (notebooks/owned-by? notebook (:user-id req)))
-        (response/html (workspace/render notebook base-url))
+        (response/html
+         (case (:notebooks/status notebook)
+           "ready"  (workspace/render notebook base-url)
+           "failed" (workspace/render-failed notebook)
+           (workspace/render-provisioning notebook)))
+        (response/not-found "No such notebook.")))))
+
+(defmethod ig/init-key :hosted-clay.handlers.notebooks/status
+  [_ {:keys [datasource]}]
+  ;; The provisioning page polls this to learn when its sprite is ready.
+  (fn [req]
+    (let [notebook (notebooks/by-id datasource (get-in req [:path-params :id]))]
+      (if (and notebook (notebooks/owned-by? notebook (:user-id req)))
+        (response/json {:status (:notebooks/status notebook)})
+        (response/not-found "No such notebook.")))))
+
+(defmethod ig/init-key :hosted-clay.handlers.notebooks/retry
+  [_ {:keys [datasource sprites-client]}]
+  ;; Re-provision a notebook whose first build failed.
+  (fn [req]
+    (let [notebook (notebooks/by-id datasource (get-in req [:path-params :id]))]
+      (if (and notebook (notebooks/owned-by? notebook (:user-id req)))
+        (do
+          (when (= "failed" (:notebooks/status notebook))
+            (let [reset (notebooks/retry-provisioning! datasource notebook)]
+              (future (notebooks/finish-provisioning! datasource sprites-client reset))))
+          (response/see-other (str "/notebooks/" (:notebooks/id notebook))))
         (response/not-found "No such notebook.")))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/delete

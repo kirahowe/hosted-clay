@@ -85,7 +85,9 @@
           (let [user (users/provision! ds {:provider         "hanko"
                                            :provider-subject (str (random-uuid))
                                            :email            (str (random-uuid) "@example.com")})
-                nb   (notebooks/create! ds test-client {:max-sprites 10} (:users/id user) "My notebook")
+                created (notebooks/create! ds test-client {:max-sprites 10} (:users/id user) "My notebook")
+                _    (notebooks/finish-provisioning! ds test-client created)
+                nb   (notebooks/by-id ds (:notebooks/id created))
                 id   (:notebooks/id nb)]
 
             (testing "the owner gets a split-view page embedding the editor and output"
@@ -111,7 +113,9 @@
           (let [user (users/provision! ds {:provider         "hanko"
                                            :provider-subject (str (random-uuid))
                                            :email            (str (random-uuid) "@example.com")})
-                nb   (notebooks/create! ds test-client {:max-sprites 10} (:users/id user) "My notebook")
+                created (notebooks/create! ds test-client {:max-sprites 10} (:users/id user) "My notebook")
+                _    (notebooks/finish-provisioning! ds test-client created)
+                nb   (notebooks/by-id ds (:notebooks/id created))
                 id   (:notebooks/id nb)]
 
             (testing "the owner restarts the notebook + code-server services on its sprite"

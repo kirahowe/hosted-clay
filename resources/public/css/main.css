@@ -140,6 +140,14 @@ button:disabled,
   color: var(--bg);
 }
 
+/* A row of sibling actions (e.g. retry / delete). */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+}
+
 /* ---------- forms ---------- */
 
 form { margin: 0; }

@@ -1,7 +1,8 @@
 (ns hosted-clay.web.response
   "Small ring-response helpers shared across handlers, so the handlers
    stay glue: read input, call the domain, pick a response."
-  (:require [hosted-clay.ui.layout :as layout]))
+  (:require [charred.api :as charred]
+            [hosted-clay.ui.layout :as layout]))
 
 (defn html
   "An HTML response. Status defaults to 200."
@@ -29,6 +30,14 @@
    {:status  status
     :headers {"content-type" "text/plain; charset=utf-8"}
     :body    body}))
+
+(defn json
+  "A JSON response from a Clojure value. Status defaults to 200."
+  ([body] (json 200 body))
+  ([status body]
+   {:status  status
+    :headers {"content-type" "application/json; charset=utf-8"}
+    :body    (charred/write-json-str body)}))
 
 (defn not-found
   "A 404 HTML page."

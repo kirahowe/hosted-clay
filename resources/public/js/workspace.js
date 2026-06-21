@@ -50,9 +50,11 @@
     return new Promise(function (resolve) { setTimeout(resolve, ms); });
   }
 
-  function waitForClay(timeoutMs) {
-    var deadline = Date.now() + timeoutMs;
+  function waitForClay(timeoutMs, onTick) {
+    var start = Date.now();
+    var deadline = start + timeoutMs;
     return (function poll() {
+      if (onTick) onTick(Math.round((Date.now() - start) / 1000));
       return fetch("/n/" + id + "/counter", { cache: "no-store" })
         .then(function (r) { return r.ok; }, function () { return false; })
         .then(function (up) {
@@ -78,7 +80,9 @@
     fetch("/notebooks/" + id + "/restart", { method: "POST" })
       .then(function (r) {
         if (!r.ok) throw new Error("restart request failed");
-        return waitForClay(90000);
+        return waitForClay(90000, function (secs) {
+          button.textContent = "Waking up… " + secs + "s";
+        });
       })
       .then(function () {
         // Whether or not the poll confirmed readiness, reload both panes:
