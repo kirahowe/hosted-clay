@@ -1,7 +1,8 @@
 (ns hosted-clay.concerns.reitit
   (:require [integrant.core :as ig]
             [reitit.ring :as ring]
-            [reitit.ring.middleware.parameters :as parameters]))
+            [reitit.ring.middleware.parameters :as parameters]
+            [hosted-clay.web.errors :as errors]))
 
 (defmethod ig/init-key :hosted-clay.concerns.reitit/ring-handler
   [_ {:keys [router default-handler opts]}]
@@ -14,7 +15,7 @@
   ;; then auth — supplied via #ig/ref from config. Any :data :middleware already
   ;; on `opts` is appended, not clobbered.
   (let [opts  (or opts {})
-        stack (into [parameters/parameters-middleware]
+        stack (into [errors/wrap-exception parameters/parameters-middleware]
                     (concat middleware (get-in opts [:data :middleware])))]
     (ring/router data (assoc-in opts [:data :middleware] stack))))
 

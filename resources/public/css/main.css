@@ -1,14 +1,22 @@
+/* Global stylesheet, loaded on every page on top of tokens.css. The
+   workspace adds workspace.css over this. Components are addressed by
+   semantic element plus a small set of intent classes; there are no
+   utility classes. */
+
+/* ---------- reset & base ---------- */
+
 *, *::before, *::after { box-sizing: border-box; }
 
 html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  font-family: var(--font-ui);
+  font-family: var(--font-sans);
   background: var(--bg);
   color: var(--fg);
-  line-height: 1.5;
+  line-height: 1.55;
   font-size: 16px;
+  -webkit-font-smoothing: antialiased;
 }
 
 main {
@@ -17,78 +25,290 @@ main {
   padding: var(--space-5) var(--space-4);
 }
 
-header.site {
-  max-width: var(--measure);
-  margin-inline: auto;
-  padding: var(--space-3) var(--space-4) 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--space-3);
-}
-
-header.site nav {
-  display: flex;
-  gap: var(--space-3);
-}
-
 h1, h2, h3 {
-  font-family: var(--font-prose);
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.2;
   margin: 0 0 var(--space-3);
 }
 
-h1 { font-size: 2rem; }
-h2 { font-size: 1.25rem; }
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.2rem; }
+h3 { font-size: 1rem; }
 
 p { margin: 0 0 var(--space-3); }
 
 a {
   color: inherit;
   text-decoration: underline;
-  text-underline-offset: 0.15em;
+  text-underline-offset: 0.18em;
   text-decoration-thickness: 1px;
+  text-decoration-color: var(--border-strong);
 }
-a:hover { color: var(--accent); }
+a:hover { text-decoration-thickness: 2px; }
 
-hr { border: 0; border-top: 1px solid var(--rule); margin: var(--space-4) 0; }
+hr { border: 0; border-top: var(--hairline) solid var(--border); margin: var(--space-4) 0; }
 
-button {
+code, kbd, samp {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  overflow-wrap: anywhere;
+}
+
+:focus-visible {
+  outline: 2px solid var(--border-strong);
+  outline-offset: 2px;
+}
+
+.muted { color: var(--fg-muted); }
+.mono { font-family: var(--font-mono); }
+
+/* ---------- site header ---------- */
+
+header.site {
+  max-width: var(--measure);
+  margin-inline: auto;
+  padding: var(--space-4) var(--space-4) 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.wordmark {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+.wordmark:hover { text-decoration: none; }
+.wordmark::before { content: "▍ "; color: var(--fg-muted); }
+
+header.site nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 0.9rem;
+}
+
+/* ---------- buttons ---------- */
+
+button,
+.button {
   font: inherit;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--rule);
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius);
   background: transparent;
   color: inherit;
+  text-decoration: none;
   cursor: pointer;
+  white-space: nowrap;
 }
-button:hover { border-color: var(--fg); }
+button:hover,
+.button:hover {
+  background: var(--fg);
+  color: var(--bg);
+  text-decoration: none;
+}
+button:disabled,
+.button[aria-disabled="true"] {
+  border-color: var(--border);
+  color: var(--fg-muted);
+  background: transparent;
+  cursor: default;
+}
 
-input[type="text"] {
+/* Primary: filled, the one emphasised action on a page. */
+.button--primary {
+  background: var(--fg);
+  color: var(--bg);
+  border-color: var(--fg);
+}
+.button--primary:hover { background: transparent; color: var(--fg); }
+
+/* Destructive: stays quiet until hovered, then reads as danger. */
+.button--danger:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--bg);
+}
+
+/* ---------- forms ---------- */
+
+form { margin: 0; }
+
+label {
+  display: block;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  color: var(--fg-muted);
+  margin-bottom: var(--space-1);
+}
+
+input[type="text"],
+input[type="email"] {
   font: inherit;
-  padding: var(--space-2);
-  border: 1px solid var(--rule);
+  padding: var(--space-2) var(--space-3);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius);
   background: var(--bg);
   color: inherit;
   width: 100%;
 }
+input[type="text"]:focus,
+input[type="email"]:focus {
+  outline: 2px solid var(--border-strong);
+  outline-offset: -1px;
+  border-color: var(--border-strong);
+}
 
-form { margin: 0 0 var(--space-3); }
+.field { margin-bottom: var(--space-3); }
 
-dl {
-  margin: 0 0 var(--space-3);
+/* ---------- card ---------- */
+
+.card {
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  background: var(--bg);
+}
+
+/* ---------- metadata list ---------- */
+
+dl.meta {
+  margin: 0;
   display: grid;
   grid-template-columns: max-content 1fr;
   column-gap: var(--space-3);
   row-gap: var(--space-2);
-}
-dt { color: var(--muted); }
-dd { margin: 0; }
-
-code {
   font-family: var(--font-mono);
-  font-size: 0.9em;
-  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+dl.meta dt { color: var(--fg-muted); }
+dl.meta dd { margin: 0; }
+
+/* ---------- copyable value ---------- */
+
+.copyable {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.copyable code {
+  padding: var(--space-1) var(--space-2);
+  border: var(--hairline) solid var(--border);
+  background: var(--bg-raised);
+}
+.copy {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: var(--space-1) var(--space-2);
+}
+.copy[data-copied="true"] { color: var(--success); border-color: var(--success); }
+
+/* ---------- notice / banner ---------- */
+
+.notice {
+  border: var(--hairline) solid var(--border);
+  border-left-width: 3px;
+  border-left-color: var(--fg);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.notice--error { border-left-color: var(--danger); background: var(--danger-bg); }
+.notice--success { border-left-color: var(--success); }
+
+/* ---------- theme toggle ---------- */
+
+.theme-toggle {
+  border: 0;
+  padding: var(--space-1);
+  background: transparent;
+  color: var(--fg-muted);
+  line-height: 0;
+}
+.theme-toggle:hover { background: transparent; color: var(--fg); }
+.theme-toggle svg { width: 1.1rem; height: 1.1rem; display: block; }
+
+/* Show the icon for the active scheme, mirroring the token cascade:
+   moon in light, sun in dark (whether dark came from the OS or a
+   manual override). */
+.icon-sun { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .icon-sun { display: block; }
+  :root:not([data-theme="light"]) .icon-moon { display: none; }
+}
+:root[data-theme="dark"] .icon-sun { display: block; }
+:root[data-theme="dark"] .icon-moon { display: none; }
+
+/* ---------- spinner & status page ---------- */
+
+.spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--border);
+  border-top-color: var(--fg);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2.4s; }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.status {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+.status-card {
+  max-width: 44ch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+.status-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--fg-muted);
 }
 
-.muted { color: var(--muted); }
+/* ---------- lists in prose ---------- */
+
+main ul { padding-left: 1.1rem; margin: 0 0 var(--space-3); }
+main li { margin-bottom: var(--space-1); }
+
+/* ---------- login (Hanko web component) ---------- */
+
+hanko-auth {
+  display: block;
+  max-width: 22rem;
+  --color: var(--fg);
+  --color-shade-1: var(--fg-muted);
+  --color-shade-2: var(--border);
+  --brand-color: var(--fg);
+  --brand-color-shade-1: var(--fg-muted);
+  --background-color: var(--bg);
+  --border-color: var(--border);
+  --border-radius: var(--radius);
+  --border-style: solid;
+  --border-width: var(--hairline);
+  --font-family: var(--font-sans);
+  --input-background-color: var(--bg);
+  --link-color: var(--fg);
+}

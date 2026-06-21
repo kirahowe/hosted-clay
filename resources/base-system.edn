@@ -23,6 +23,7 @@
    ["/logout"               {:public? true :post {:handler #ig/ref :hosted-clay.handlers.auth/logout}}]
    ["/health"               {:public? true :get {:handler #ig/ref :hosted-clay.handlers/health}}]
    ["/static/*"             {:public? true :handler #ig/ref :hosted-clay.handlers/static}]
+   ["/favicon.ico"          {:public? true :get {:handler #ig/ref :hosted-clay.handlers/favicon}}]
    ["/dashboard"            {:get  {:handler #ig/ref :hosted-clay.handlers/dashboard}}]
    ["/notebooks"            {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/create}}]
    ["/notebooks/:id"        {:get  {:handler #ig/ref :hosted-clay.handlers.notebooks/workspace}}]
@@ -72,9 +73,10 @@
 
  ;; ---------- handlers ----------
 
- :hosted-clay.handlers/home   {}
- :hosted-clay.handlers/health {}
- :hosted-clay.handlers/static {:root "public"}
+ :hosted-clay.handlers/home    {}
+ :hosted-clay.handlers/health  {}
+ :hosted-clay.handlers/static  {:root "public"}
+ :hosted-clay.handlers/favicon {}
 
  :hosted-clay.handlers/dashboard
  {:datasource #ig/ref :hosted-clay.db/migrator
