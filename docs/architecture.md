@@ -23,7 +23,14 @@ hiccup), state in file-backed SQLite on a Fly volume. It owns:
   live Clay output side by side, as two same-origin iframes onto the
   owner proxy. Saving in the editor re-renders the output via Clay's
   live-reload. The dashboard's "Open notebook" link and a new notebook's
-  post-create redirect both land here.
+  post-create redirect both land here. The editor iframe carries
+  `?folder=/home/sprite/notebook` so code-server pins the workspace from
+  the browser side regardless of persisted state. A **Restart** action
+  (`POST /notebooks/:id/restart`) bounces both the sprite's `notebook` and
+  `code-server` services over the exec socket for when Clay dies and
+  `/n/:id/` starts 502ing (code-server too, so Calva's one-shot auto-connect
+  re-attaches to the fresh nREPL); the page then polls `/n/:id/counter` for
+  liveness and reloads both panes.
 - **Proxy** — all browser traffic to a notebook flows through the
   control plane (`hosted-clay.proxy`): sprite URLs stay on Sprites' own
   auth and the proxy attaches the org API token. Owner traffic
@@ -41,15 +48,20 @@ work), installed by `resources/sprite/setup.sh` over the exec WebSocket:
 - Caddy on 8080 (the sprite URL's http_port): `/edit/*` → code-server
   (8443), everything else → Clay (1971).
 - One JVM (`clojure -M:watch`, see `resources/sprite/watch.clj`):
-  nREPL on localhost:1339 for Calva + Clay in live-reload mode.
+  nREPL on localhost:1339 for Calva + Clay in live-reload mode. `watch.clj`
+  writes an `.nrepl-port` file after the server binds so Calva can find it.
 - code-server with Calva, `--auth none` — it is only reachable through
   the authenticated proxy. Calva is configured (baked-in `settings.json`)
   with clojure-lsp-on-start disabled and jack-in versions pinned: on a
   constrained free sprite, clojure-lsp indexing the Noj classpath and
   Calva's `find-versions` resolution otherwise saturate the CPU on first
-  editor open, stalling saves and Clay's live-reload WebSocket. The
-  save -> live-reload MVP loop needs neither; a future REPL connect is
-  unaffected (lsp is static analysis, independent of nREPL).
+  editor open, stalling saves and Clay's live-reload WebSocket. Neither is
+  needed: the primary loop is save -> Clay live-reload, and the REPL is
+  *connected* (not jacked-in) — `calva.autoConnectRepl` picks up the
+  `.nrepl-port` file and attaches to the running nREPL on open. Eval
+  results surface inline in the editor; the rendered pane only changes on
+  save, so the two don't fight. (clojure-lsp is static analysis,
+  independent of the running REPL.)
 - Services are registered with the sprite runtime, so a cold boot
   restarts them; a warm wake resumes the running JVM in place.
 

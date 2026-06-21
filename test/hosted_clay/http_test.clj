@@ -6,6 +6,7 @@
             [org.httpkit.server :as http-kit]
             [hosted-clay.notebooks :as notebooks]
             [hosted-clay.sprites.client :as sprites]
+            [hosted-clay.sprites.exec :as exec]
             [hosted-clay.sprites.provision :as provision]
             [hosted-clay.test-system :as ts]
             [hosted-clay.users :as users])
@@ -99,6 +100,43 @@
               (let [{:keys [status]} (handler {:user-id     "someone-else"
                                                :path-params {:id id}})]
                 (is (= 404 status))))))))))
+
+(deftest restart-bounces-service-for-owner-only
+  (ts/with-system [:hosted-clay.handlers.notebooks/restart]
+    (fn [system]
+      (let [ds      (:hosted-clay.db/migrator system)
+            handler (:hosted-clay.handlers.notebooks/restart system)]
+        (with-redefs [sprites/create-sprite! (fn [_ name] {:name name :url (str "https://" name ".sprites.test")})
+                      provision/provision!   (fn [_ _])]
+          (let [user (users/provision! ds {:provider         "hanko"
+                                           :provider-subject (str (random-uuid))
+                                           :email            (str (random-uuid) "@example.com")})
+                nb   (notebooks/create! ds test-client {:max-sprites 10} (:users/id user) "My notebook")
+                id   (:notebooks/id nb)]
+
+            (testing "the owner restarts the notebook + code-server services on its sprite"
+              (let [calls (atom [])]
+                (with-redefs [exec/exec! (fn [_ sprite-name cmd & _]
+                                           (swap! calls conj [sprite-name cmd])
+                                           {:exit 0 :out "" :err ""})]
+                  (let [{:keys [status]} (handler {:user-id (:users/id user) :path-params {:id id}})]
+                    (is (= 204 status))
+                    (is (= [[(:notebooks/sprite-name nb)
+                             ["bash" "-c"
+                              "sprite-env services restart notebook && sprite-env services restart code-server"]]]
+                           @calls))))))
+
+            (testing "a failed restart surfaces as a 502"
+              (with-redefs [exec/exec! (fn [_ _ _ & _] {:exit 1 :out "" :err "boom"})]
+                (let [{:keys [status]} (handler {:user-id (:users/id user) :path-params {:id id}})]
+                  (is (= 502 status)))))
+
+            (testing "a non-owner gets a 404 and never reaches the sprite"
+              (let [reached (atom false)]
+                (with-redefs [exec/exec! (fn [_ _ _ & _] (reset! reached true) {:exit 0})]
+                  (let [{:keys [status]} (handler {:user-id "someone-else" :path-params {:id id}})]
+                    (is (= 404 status))
+                    (is (false? @reached))))))))))))
 
 (deftest end-to-end-server-binds-and-serves
   (ts/with-system [:hosted-clay.concerns/http-kit]

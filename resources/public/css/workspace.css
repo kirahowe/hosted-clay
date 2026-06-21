@@ -34,8 +34,22 @@ body.workspace-body { overflow: hidden; }
 
 .workspace-actions {
   display: flex;
+  align-items: center;
   gap: var(--space-3);
 }
+
+/* The restart action sits among link-styled actions, so it's a text
+   button rather than the bordered default. */
+.workspace-restart {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.workspace-restart:hover { color: var(--accent); }
+.workspace-restart:disabled { color: var(--muted); cursor: default; }
 
 /* The split. The editor pane's width lives in a custom property so the
    divider drag (workspace.js) can update it; the output pane takes the

@@ -6,22 +6,30 @@
   (:require [hosted-clay.ui.layout :as layout]))
 
 (defn render [notebook base-url]
-  (let [id        (:notebooks/id notebook)
-        title     (:notebooks/title notebook)
-        share-url (str base-url "/s/" (:notebooks/share-token notebook) "/")]
+  (let [id         (:notebooks/id notebook)
+        title      (:notebooks/title notebook)
+        ;; `?folder` pins the workspace from the browser side — code-server
+        ;; resolves the folder as query-param > CLI arg > last-opened, so the
+        ;; editor reliably opens the notebook folder (and Calva sees the
+        ;; project) regardless of any stale persisted state.
+        editor-src (str "/n/" id "/edit/?folder=/home/sprite/notebook")
+        share-url  (str base-url "/s/" (:notebooks/share-token notebook) "/")]
     (layout/page
      title
-     [:div.workspace
+     [:div.workspace {:data-notebook-id id}
       [:header.workspace-bar
        [:a.workspace-home {:href "/dashboard"} "← Dashboard"]
        [:span.workspace-title title]
        [:nav.workspace-actions
-        [:a {:href (str "/n/" id "/edit/") :target "_blank" :rel "noopener"} "Editor ↗"]
+        [:button.workspace-restart {:type "button"
+                                    :title "Restart the notebook environment if the output stops responding"}
+         "Restart"]
+        [:a {:href editor-src :target "_blank" :rel "noopener"} "Editor ↗"]
         [:a {:href (str "/n/" id "/") :target "_blank" :rel "noopener"} "Output ↗"]
         [:a {:href share-url :target "_blank" :rel "noopener"} "Share link ↗"]]]
       [:div.workspace-panes
        [:section.workspace-pane.workspace-editor
-        [:iframe {:src   (str "/n/" id "/edit/")
+        [:iframe {:src   editor-src
                   :title "Editor"
                   :allow "clipboard-read; clipboard-write"}]]
        [:div.workspace-divider {:role "separator" :aria-orientation "vertical"}]

@@ -16,6 +16,20 @@
   [location]
   {:status 303 :headers {"location" location}})
 
+(defn no-content
+  "A 204, for an action whose result the client reads from the status
+   alone (e.g. a fetch checking `resp.ok`)."
+  []
+  {:status 204})
+
+(defn text
+  "A plain-text response. Status defaults to 200."
+  ([body] (text 200 body))
+  ([status body]
+   {:status  status
+    :headers {"content-type" "text/plain; charset=utf-8"}
+    :body    body}))
+
 (defn not-found
   "A 404 HTML page."
   [message]
