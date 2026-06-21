@@ -79,6 +79,8 @@ work), installed by `resources/sprite/setup.sh` over the exec WebSocket:
     off, scaffolding hidden from the explorer (`files.exclude`) and Quick
     Open (`search.exclude`); the sidebar is collapsed on startup by a small
     first-party extension (no setting exists for it). The terminal is kept.
+    The editor follows the browser's light/dark preference
+    (`window.autoDetectColorScheme`), matching the rest of the workspace chrome.
   - **Auto-open** — `.vscode/tasks.json` `folderOpen` tasks open
     `notebook.clj` and an interactive terminal; the editor iframe also
     carries `?folder=` to pin the workspace from the browser side.
