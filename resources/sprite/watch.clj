@@ -8,6 +8,16 @@
 
 (defn -main [& _]
   (nrepl/start-server :port 1339 :bind "127.0.0.1" :handler cider-nrepl-handler)
+  ;; Drop an `.nrepl-port` file so Calva's `autoConnectRepl` finds the
+  ;; already-running server and connects on editor open — no jack-in, no
+  ;; host:port prompt. Written after `start-server` returns (the socket is
+  ;; bound and listening by then), so the file's presence means the nREPL is
+  ;; accepting connections. `autoConnectRepl` checks for this file *once* at
+  ;; editor activation and does not retry, so the code-server service is
+  ;; gated on the nREPL port being reachable (bin/wait-repl.sh) to keep the
+  ;; JVM's slow cold start from racing that check. (It's a dotfile, not a
+  ;; .clj, so Clay's directory watcher ignores it.)
+  (spit ".nrepl-port" "1339")
   (clay/make! {:source-path "notebook.clj"
                :live-reload true
                :browse      false

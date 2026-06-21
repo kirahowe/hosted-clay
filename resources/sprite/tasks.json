@@ -1,0 +1,35 @@
+{
+  // Two things run automatically on folder open (the folder must open as a
+  // workspace for folderOpen tasks to fire at all — see bin/code-server.sh).
+  // Workspace trust + automatic tasks are enabled in settings.json, so
+  // neither prompts on first load.
+  //
+  //  1. open-notebook: open notebook.clj on top of the workspace. code-server
+  //     has no CLI flag to open a file alongside a folder, so we ask the
+  //     already-running window to open it via the code-server CLI (it finds
+  //     the window through VSCODE_IPC_HOOK_CLI, which is set in the task
+  //     shell). --reuse-window targets the running window; there's only ever
+  //     one per sprite, so the multi-window targeting bug doesn't apply. Runs
+  //     silently — it's a one-shot, not a terminal the user works in.
+  //  2. terminal: leave an interactive terminal open. A folderOpen shell task
+  //     runs in an integrated terminal panel, so this both opens that panel
+  //     (reveal: always) and keeps it a live shell (exec bash) for the user —
+  //     Clojure data-science code prints useful things to stdout.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "open-notebook",
+      "type": "shell",
+      "command": "code-server --reuse-window /home/sprite/notebook/notebook.clj",
+      "presentation": { "reveal": "never", "echo": false, "panel": "shared", "close": true },
+      "runOptions": { "runOn": "folderOpen" }
+    },
+    {
+      "label": "terminal",
+      "type": "shell",
+      "command": "exec bash",
+      "presentation": { "reveal": "always", "echo": false, "panel": "dedicated", "focus": false },
+      "runOptions": { "runOn": "folderOpen" }
+    }
+  ]
+}

@@ -1,13 +1,32 @@
 ;; # Welcome to your Clay notebook
 ;;
-;; This file is a regular Clojure namespace. Clay renders it: comments
-;; like this one become prose, and the value of each top-level form is
-;; displayed below it. Edit the source in the editor — every save
-;; re-renders this page.
+;; You're looking at a **Clojure namespace**. The editor is on the left;
+;; the rendered notebook is on the right. Comment lines like this one
+;; become prose, and the value of each piece of code shows up right below
+;; it.
+;;
+;; There are two ways to run your code:
+;;
+;; 1. **Save to re-render.** Every time you save (`Cmd`/`Ctrl`+`S`), the
+;;    page on the right re-renders from this file. This is the main way to
+;;    work — edit, save, look right.
+;; 2. **Evaluate at the REPL.** A *REPL* (read-eval-print loop) runs one
+;;    expression at a time and shows the result instantly, without
+;;    re-rendering the whole page — handy for quick experiments. One is
+;;    already connected for you; the next form lets you try it.
 
 (ns notebook
   (:require [tablecloth.api :as tc]
             [scicloj.tableplot.v1.plotly :as plotly]))
+
+;; ## Try the REPL
+;;
+;; Click anywhere inside the parentheses below and press `Alt`+`Enter`.
+;; The result (`2`) appears right next to the code — no save, no page
+;; reload. That's the REPL. (Saving still works too; you'll see the same
+;; `2` render on the right.)
+
+(+ 1 1)
 
 ;; ## Data with Tablecloth
 ;;
@@ -35,5 +54,3 @@ flowers
 ;;   classpath: Tablecloth, Tableplot, Fastmath, and friends.
 ;; - The [Clay documentation](https://scicloj.github.io/clay/) shows
 ;;   what renders and how to control it.
-;; - Connect a REPL: the editor runs Calva, and an nREPL server is
-;;   already listening on localhost:1339.

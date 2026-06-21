@@ -13,6 +13,7 @@
   {"sprite/deps.edn"     "/home/sprite/notebook/deps.edn"
    "sprite/notebook.clj" "/home/sprite/notebook/notebook.clj"
    "sprite/watch.clj"    "/home/sprite/notebook/watch.clj"
+   "sprite/tasks.json"   "/home/sprite/notebook/.vscode/tasks.json"
    "sprite/Caddyfile"    "/home/sprite/Caddyfile"})
 
 (defn- run!*
