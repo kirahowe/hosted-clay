@@ -26,6 +26,87 @@ if ! command -v code-server >/dev/null 2>&1; then
 fi
 code-server --install-extension betterthantomorrow.calva
 
+# Collapse the primary sidebar (Explorer) on startup. There is no settings.json
+# key for this (microsoft/vscode#3742 is still open) and a task can't invoke a
+# VSCode command, so the activity-bar trick can't help. code-server stores
+# workbench layout state (sidebar visibility) only in the BROWSER's IndexedDB,
+# never on disk — coder/code-server#7011 ("load global-state from a file") was
+# closed as not-planned — so there is no server-side state file to seed, and a
+# fresh sprite hitting a fresh browser always falls back to the default
+# (sidebar shown when a folder is open). The Open VSX "auto hide" extensions
+# don't help either: in every published one the startup-hide (`hideOnOpen`) is
+# dead code (commented out / never invoked), they only react to a mouse click,
+# and they also close the panel — which would fight the terminal task below.
+# The one mechanism that does work is an extension that runs
+# `workbench.action.closeSidebar` at activation, so we ship a ~10-line
+# first-party one. It touches only the sidebar (leaves the terminal panel
+# alone) and uses a stable, documented command, so it won't rot like the
+# abandoned forks. Built into a .vsix here (no host-side build tooling, no
+# external hosting) and installed via the supported --install-extension path,
+# same as Calva. A brief sidebar flash before it collapses is expected.
+command -v zip >/dev/null 2>&1 || sudo apt-get install -y -qq zip || true
+ext_build="$(mktemp -d)"
+mkdir -p "$ext_build/extension"
+cat > "$ext_build/extension/package.json" <<'EOF'
+{
+  "name": "notebook-chrome",
+  "displayName": "Notebook Chrome",
+  "description": "Collapse the primary sidebar on startup for a focused single-file notebook editor.",
+  "version": "1.0.0",
+  "publisher": "hosted-clay",
+  "engines": { "vscode": "^1.60.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./extension.js"
+}
+EOF
+cat > "$ext_build/extension/extension.js" <<'EOF'
+const vscode = require("vscode");
+function activate() {
+  // Fired once at activation (onStartupFinished). closeSidebar is a no-op when
+  // the sidebar is already hidden, so it's safe on warm wakes too.
+  vscode.commands.executeCommand("workbench.action.closeSidebar");
+}
+function deactivate() {}
+module.exports = { activate, deactivate };
+EOF
+cat > "$ext_build/extension.vsixmanifest" <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+  <Metadata>
+    <Identity Language="en-US" Id="notebook-chrome" Version="1.0.0" Publisher="hosted-clay" />
+    <DisplayName>Notebook Chrome</DisplayName>
+    <Description xml:space="preserve">Collapse the primary sidebar on startup for a focused single-file notebook editor.</Description>
+    <Tags></Tags>
+    <Categories>Other</Categories>
+    <GalleryFlags>Public</GalleryFlags>
+    <Properties>
+      <Property Id="Microsoft.VisualStudio.Code.Engine" Value="^1.60.0" />
+      <Property Id="Microsoft.VisualStudio.Code.ExtensionKind" Value="ui,workspace" />
+    </Properties>
+  </Metadata>
+  <Installation>
+    <InstallationTarget Id="Microsoft.VisualStudio.Code"/>
+  </Installation>
+  <Dependencies/>
+  <Assets>
+    <Asset Type="Microsoft.VisualStudio.Code.Manifest" Path="extension/package.json" Addressable="true" />
+  </Assets>
+</PackageManifest>
+EOF
+cat > "$ext_build/[Content_Types].xml" <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension=".js" ContentType="application/javascript"/><Default Extension=".json" ContentType="application/json"/><Default Extension=".vsixmanifest" ContentType="text/xml"/></Types>
+EOF
+# Best-effort: a missing zip or a hand-built .vsix the installer rejects must
+# NOT abort provisioning — collapsing the sidebar is cosmetic. Worst case the
+# sidebar just stays open.
+( cd "$ext_build" \
+  && zip -q -r notebook-chrome.vsix "[Content_Types].xml" extension.vsixmanifest extension \
+  && code-server --install-extension notebook-chrome.vsix ) \
+  || echo "warning: notebook-chrome sidebar extension not installed (cosmetic); continuing" >&2
+rm -rf "$ext_build"
+
 # Shape code-server into a focused single-namespace editor and auto-connect
 # the REPL. Three things going on here:
 #
