@@ -10,6 +10,21 @@
             [hosted-clay.ui.pages.workspace :as workspace]
             [hosted-clay.web.response :as response]))
 
+(defn- owned-notebook
+  "The request's target notebook if the caller owns it, else nil."
+  [datasource req]
+  (let [nb (notebooks/by-id datasource (get-in req [:path-params :id]))]
+    (when (and nb (notebooks/owned-by? nb (:user-id req))) nb)))
+
+(defn- with-owned-notebook
+  "Pass the request's notebook to `f` if the caller owns it, otherwise 404.
+   Ownership is the only access check, and a miss is a 404 (not a 403) so
+   notebook ids stay unprobeable."
+  [datasource req f]
+  (if-let [nb (owned-notebook datasource req)]
+    (f nb)
+    (response/not-found "No such notebook.")))
+
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/create
   [_ {:keys [datasource sprites-client max-sprites]}]
   (fn [req]
@@ -48,45 +63,41 @@
   ;; error page if that failed. Ownership-gated like the proxy, and a miss
   ;; is a 404 (not a 403) so notebook ids stay unprobeable.
   (fn [req]
-    (let [notebook (notebooks/by-id datasource (get-in req [:path-params :id]))]
-      (if (and notebook (notebooks/owned-by? notebook (:user-id req)))
+    (with-owned-notebook datasource req
+      (fn [notebook]
         (response/html
          (case (:notebooks/status notebook)
            "ready"  (workspace/render notebook base-url)
            "failed" (workspace/render-failed notebook)
-           (workspace/render-provisioning notebook)))
-        (response/not-found "No such notebook.")))))
+           (workspace/render-provisioning notebook)))))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/status
   [_ {:keys [datasource]}]
   ;; The provisioning page polls this to learn when its sprite is ready.
   (fn [req]
-    (let [notebook (notebooks/by-id datasource (get-in req [:path-params :id]))]
-      (if (and notebook (notebooks/owned-by? notebook (:user-id req)))
-        (response/json {:status (:notebooks/status notebook)})
-        (response/not-found "No such notebook.")))))
+    (with-owned-notebook datasource req
+      (fn [notebook]
+        (response/json {:status (:notebooks/status notebook)})))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/retry
   [_ {:keys [datasource sprites-client]}]
-  ;; Re-provision a notebook whose first build failed.
+  ;; Re-provision a notebook whose first build failed. Re-provisioning a
+  ;; notebook in any other state is a no-op; either way we land back on it.
   (fn [req]
-    (let [notebook (notebooks/by-id datasource (get-in req [:path-params :id]))]
-      (if (and notebook (notebooks/owned-by? notebook (:user-id req)))
-        (do
-          (when (= "failed" (:notebooks/status notebook))
-            (let [reset (notebooks/retry-provisioning! datasource notebook)]
-              (future (notebooks/finish-provisioning! datasource sprites-client reset))))
-          (response/see-other (str "/notebooks/" (:notebooks/id notebook))))
-        (response/not-found "No such notebook.")))))
+    (with-owned-notebook datasource req
+      (fn [notebook]
+        (when (= "failed" (:notebooks/status notebook))
+          (when-let [reset (notebooks/retry-provisioning! datasource notebook)]
+            (future (notebooks/finish-provisioning! datasource sprites-client reset))))
+        (response/see-other (str "/notebooks/" (:notebooks/id notebook)))))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/delete
   [_ {:keys [datasource sprites-client]}]
   (fn [req]
-    (let [notebook (notebooks/by-id datasource (get-in req [:path-params :id]))]
-      (if (and notebook (notebooks/owned-by? notebook (:user-id req)))
-        (do (notebooks/delete! datasource sprites-client notebook)
-            (response/see-other "/dashboard"))
-        (response/not-found "No such notebook.")))))
+    (with-owned-notebook datasource req
+      (fn [notebook]
+        (notebooks/delete! datasource sprites-client notebook)
+        (response/see-other "/dashboard")))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/restart
   [_ {:keys [datasource sprites-client]}]
@@ -104,8 +115,8 @@
   ;; itself), so the low-concurrency assumption in hosted-clay.sprites.exec
   ;; holds.
   (fn [req]
-    (let [notebook (notebooks/by-id datasource (get-in req [:path-params :id]))]
-      (if (and notebook (notebooks/owned-by? notebook (:user-id req)))
+    (with-owned-notebook datasource req
+      (fn [notebook]
         (let [{:keys [exit err]}
               (exec/exec! sprites-client (:notebooks/sprite-name notebook)
                           ["bash" "-c"
@@ -115,8 +126,7 @@
             (response/no-content)
             (do (log/warn "notebook restart failed"
                           {:notebook-id (:notebooks/id notebook) :exit exit :err err})
-                (response/text 502 "Could not restart the notebook environment."))))
-        (response/not-found "No such notebook.")))))
+                (response/text 502 "Could not restart the notebook environment."))))))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/open
   [_ {:keys [datasource sprites-client]}]
@@ -125,15 +135,14 @@
   ;; through /s/ instead. A miss is a 404, not a 403, so notebook ids
   ;; aren't probeable.
   (fn [req]
-    (let [notebook (notebooks/by-id datasource (get-in req [:path-params :id]))]
-      (if (and notebook (notebooks/owned-by? notebook (:user-id req)))
-        (do (notebooks/touch! datasource notebook)
-            (proxy/forward sprites-client
-                           (:notebooks/sprite-url notebook)
-                           (get-in req [:path-params :path])
-                           req
-                           {:strip-framing? true}))
-        (response/not-found "No such notebook.")))))
+    (with-owned-notebook datasource req
+      (fn [notebook]
+        (notebooks/touch! datasource notebook)
+        (proxy/forward sprites-client
+                       (:notebooks/sprite-url notebook)
+                       (get-in req [:path-params :path])
+                       req
+                       {:strip-framing? true})))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/open-root [_ _]
   ;; /n/:id -> /n/:id/ so relative asset URLs in the proxied pages

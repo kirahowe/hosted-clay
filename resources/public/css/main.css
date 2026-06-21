@@ -270,7 +270,8 @@ dl.meta dd { margin: 0; }
   flex: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  .spinner { animation-duration: 2.4s; }
+  /* Stop the spin entirely; a dimmed ring still reads as "working". */
+  .spinner { animation: none; opacity: 0.5; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 

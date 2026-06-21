@@ -43,39 +43,44 @@
      {:head       [:link {:rel "stylesheet" :href "/static/css/workspace.css"}]
       :body-class "workspace-body"})))
 
-(defn render-provisioning [notebook]
+(defn- status-page
+  "The shared chrome for the non-ready states: standard layout, a back
+   link, and a centred status card holding `card` (a seq of children).
+   `main-attrs` lets the provisioning page hang its poll hook on <main>."
+  [notebook suffix main-attrs card]
   (layout/page
-   (str (:notebooks/title notebook) " — setting up")
+   (str (:notebooks/title notebook) suffix)
    [:div
     (layout/site-header [:a {:href "/dashboard"} "← Dashboard"])
-    [:main {:data-provision (:notebooks/id notebook)}
+    [:main main-attrs
      [:section.status
-      [:div.status-card
-       [:div.spinner {:role "status" :aria-label "Setting up"}]
-       [:h1 "Setting up your notebook"]
-       [:p.muted
-        "We're building a private environment with Clay and Noj on the "
-        "classpath. The first one takes a couple of minutes. This page "
-        "opens the editor by itself when it's ready — you can leave it open."]
-       [:p.status-line "Provisioning the environment…"]]]]]))
+      [:div.status-card card]]]]))
+
+(defn render-provisioning [notebook]
+  (status-page
+   notebook " — setting up" {:data-provision (:notebooks/id notebook)}
+   (list
+    [:div.spinner {:role "status" :aria-label "Setting up"}]
+    [:h1 "Setting up your notebook"]
+    [:p.muted
+     "We're building a private environment with Clay and Noj on the "
+     "classpath. The first one takes a couple of minutes. This page "
+     "opens the editor by itself when it's ready — you can leave it open."]
+    [:p.status-line "Provisioning the environment…"])))
 
 (defn render-failed [notebook]
   (let [id (:notebooks/id notebook)]
-    (layout/page
-     (str (:notebooks/title notebook) " — setup failed")
-     [:div
-      (layout/site-header [:a {:href "/dashboard"} "← Dashboard"])
-      [:main
-       [:section.status
-        [:div.status-card
-         [:h1 "Setup didn't finish"]
-         [:p.muted
-          "Something went wrong while building your environment. You can try "
-          "again, or delete it and start over."]
-         [:div.actions
-          [:form {:method "post" :action (str "/notebooks/" id "/retry")
-                  :data-submit-label "Retrying…"}
-           [:button.button--primary {:type "submit"} "Try again"]]
-          [:form {:method "post" :action (str "/notebooks/" id "/delete")
-                  :onsubmit "return confirm('Delete this notebook? This cannot be undone.')"}
-           [:button.button--danger {:type "submit"} "Delete"]]]]]]])))
+    (status-page
+     notebook " — setup failed" {}
+     (list
+      [:h1 "Setup didn't finish"]
+      [:p.muted
+       "Something went wrong while building your environment. You can try "
+       "again, or delete it and start over."]
+      [:div.actions
+       [:form {:method "post" :action (str "/notebooks/" id "/retry")
+               :data-submit-label "Retrying…"}
+        [:button.button--primary {:type "submit"} "Try again"]]
+       [:form {:method "post" :action (str "/notebooks/" id "/delete")
+               :onsubmit "return confirm('Delete this notebook? This cannot be undone.')"}
+        [:button.button--danger {:type "submit"} "Delete"]]]))))

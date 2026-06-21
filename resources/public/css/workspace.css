@@ -52,7 +52,7 @@ body.workspace-body { overflow: hidden; }
   color: inherit;
   background: none;
   border: 0;
-  border-radius: 0;
+  border-radius: var(--radius);
   padding: 0;
   cursor: pointer;
 }

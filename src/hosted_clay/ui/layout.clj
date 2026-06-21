@@ -49,8 +49,9 @@
            [:meta {:name "viewport" :content "width=device-width, initial-scale=1"}]
            [:meta {:name "description" :content description}]
            [:meta {:name "color-scheme" :content "light dark"}]
-           [:meta {:name "theme-color" :content "#ffffff" :media "(prefers-color-scheme: light)"}]
-           [:meta {:name "theme-color" :content "#0d0d0f" :media "(prefers-color-scheme: dark)"}]
+           ;; A single theme-color the toggle keeps in sync with the active
+           ;; --bg (app.js), so it tracks a manual override, not just the OS.
+           [:meta {:name "theme-color" :content "#ffffff"}]
            [:title title]
            [:script theme-bootstrap]
            [:link {:rel "icon" :type "image/svg+xml" :href "/static/favicon.svg"}]

@@ -3,7 +3,8 @@
    instead of a blank response or a leaked stack trace. Mounted as the
    outermost middleware so it covers the auth and CSRF layers too."
   (:require [clojure.tools.logging :as log]
-            [hosted-clay.ui.layout :as layout]))
+            [hosted-clay.ui.layout :as layout]
+            [hosted-clay.web.response :as response]))
 
 (defn wrap-exception [handler]
   (fn [req]
@@ -12,6 +13,4 @@
       (catch Throwable t
         (log/error t "unhandled exception"
                    {:uri (:uri req) :method (:request-method req)})
-        {:status  500
-         :headers {"content-type" "text/html; charset=utf-8"}
-         :body    (layout/error)}))))
+        (response/html 500 (layout/error))))))

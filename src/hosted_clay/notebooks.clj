@@ -2,7 +2,8 @@
   "Notebook domain logic: creating (claiming a warm sprite or
    provisioning one on the spot), sharing, activity tracking, and
    deletion."
-  (:require [clojure.tools.logging :as log]
+  (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [hosted-clay.db.crud :as crud]
             [hosted-clay.pool :as pool]
             [hosted-clay.sprites.client :as sprites]
@@ -39,7 +40,11 @@
                           :last-accessed-at (crud/now)}
                          attrs))
     (catch java.sql.SQLException e
-      (if (for-user ds user-id)
+      ;; Only a UNIQUE violation (the one-per-user index) means "already
+      ;; exists" — any other SQL error propagates rather than being mistaken
+      ;; for a race and silently dropping the user's claimed sprite.
+      (if (and (str/includes? (.getMessage e) "UNIQUE")
+               (for-user ds user-id))
         (do (when claimed-sprite-name
               (sprites/delete-sprite! client claimed-sprite-name))
             ::already-exists)
