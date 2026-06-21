@@ -39,6 +39,15 @@ hiccup), state in file-backed SQLite on a Fly volume. It owns:
   stripped so it can be embedded in the workspace iframes; share traffic
   (`/s/:token/*`) is GET/HEAD only, keeps its framing headers, and
   `/edit/*` is blocked, so a share link can never reach the editor.
+  A dead/​waking sprite is answered with a styled, self-refreshing page
+  for document requests (`hosted-clay.ui.pages.waking`) and a plain line
+  otherwise.
+- **Email** — only the 23-day deletion warning, sent via Resend's HTTP
+  API (`hosted-clay.email`). With no `RESEND_API_KEY` the component logs
+  the message instead of sending and warns loudly at startup, so the flow
+  is exercisable in dev. A failed send *throws*, so the notebook is left
+  un-warned and retried on the next sweep rather than marked warned and
+  deleted unannounced.
 
 ## Notebook sprite
 
@@ -97,6 +106,11 @@ this implementation assumes:
    `docs/clay-reverse-proxy-proposal.md`.
 4. **SDKMAN java path inside the sprite base image** — setup.sh probes
    for it and fails loudly if the probe misses.
+5. **Email delivery** — deletion warnings only send when `RESEND_API_KEY`
+   is set as a Fly secret. `EMAIL_FROM` must be a domain verified on the
+   Resend account; the prod default (`onboarding@resend.dev`) is Resend's
+   sandbox sender and only delivers to verified recipients. Without the
+   key the app runs fine but logs every "email" instead of sending it.
 
 ## Deliberate deviations from the original spec
 

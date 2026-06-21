@@ -41,10 +41,17 @@
                  "— Clay notebooks")})
 
 (defn- warn! [ds send-email notebook {:keys [base-url delete-after-days]}]
-  (let [user (users/by-id ds (:notebooks/user-id notebook))]
-    (send-email (warning-message user notebook base-url delete-after-days))
-    (crud/update! ds :notebooks (:notebooks/id notebook) {:warned-at (crud/now)})
-    (log/info "deletion warning sent" {:notebook-id (:notebooks/id notebook)})))
+  ;; warned-at is written only after send-email returns — send-email throws
+  ;; on a failed delivery, so a failure leaves the notebook un-warned and the
+  ;; next sweep retries it rather than deleting it unannounced.
+  (if-let [user (users/by-id ds (:notebooks/user-id notebook))]
+    (do
+      (send-email (warning-message user notebook base-url delete-after-days))
+      (crud/update! ds :notebooks (:notebooks/id notebook) {:warned-at (crud/now)})
+      (log/info "deletion warning sent" {:notebook-id (:notebooks/id notebook)}))
+    (log/error "cannot send deletion warning: notebook has no user"
+               {:notebook-id (:notebooks/id notebook)
+                :user-id     (:notebooks/user-id notebook)})))
 
 (defn sweep!
   "One pass of the idle policy: warn, then delete. Each notebook is
