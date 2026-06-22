@@ -32,6 +32,11 @@
         (layout/theme-toggle)]]
       [:div.workspace-panes
        [:section.workspace-pane.workspace-editor
+        [:div.editor-loading {:data-editor-loading true}
+         [:div.status-card
+          [:div.spinner {:role "status" :aria-label "Starting the editor"}]
+          [:p.muted "Starting the editor — opening your notebook and a "
+           "terminal. This takes a few seconds."]]]
         [:iframe {:src   editor-src
                   :title "Editor"
                   :allow "clipboard-read; clipboard-write"}]]
@@ -61,12 +66,8 @@
    notebook " — setting up" {:data-provision (:notebooks/id notebook)}
    (list
     [:div.spinner {:role "status" :aria-label "Setting up"}]
-    [:h1 "Setting up your notebook"]
-    [:p.muted
-     "We're building a private environment with Clay and Noj on the "
-     "classpath. The first one takes a couple of minutes. This page "
-     "opens the editor by itself when it's ready — you can leave it open."]
-    [:p.status-line "Provisioning the environment…"])))
+    [:h1 "Spinning up your notebook"]
+    [:p.muted "This can sometimes take a couple of minutes."])))
 
 (defn render-failed [notebook]
   (let [id (:notebooks/id notebook)]

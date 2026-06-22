@@ -76,8 +76,26 @@ body.workspace-body { overflow: hidden; }
   overflow: hidden;
 }
 
-.workspace-editor { flex: 0 0 var(--editor-width); }
+.workspace-editor { flex: 0 0 var(--editor-width); position: relative; }
 .workspace-output { flex: 1 1 0; }
+
+/* Overlay shown while code-server boots and assembles the workspace (opens
+   the notebook, the terminal, connects the REPL) — none of which it signals,
+   so workspace.js hides this after the iframe loads + a grace period. */
+.editor-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--bg);
+  text-align: center;
+  transition: opacity 0.3s ease;
+}
+.editor-loading[hidden] { display: none; }
+.editor-loading.fading { opacity: 0; }
+.editor-loading .status-card { max-width: 32ch; }
 
 .workspace-pane iframe {
   width: 100%;

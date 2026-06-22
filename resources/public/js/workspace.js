@@ -101,3 +101,25 @@
       });
   });
 })();
+
+// Editor pane: code-server loads, then assembles the workspace (opens the
+// notebook, the terminal, connects the REPL) over a few more seconds, and
+// signals none of it. Keep a "starting" overlay up so the wait is obvious;
+// hide it shortly after the iframe loads, on click, or at a hard cap.
+(function () {
+  var overlay = document.querySelector("[data-editor-loading]");
+  var editor = document.querySelector(".workspace-editor iframe");
+  if (!overlay || !editor) return;
+
+  var hidden = false;
+  function hide() {
+    if (hidden) return;
+    hidden = true;
+    overlay.classList.add("fading");
+    setTimeout(function () { overlay.hidden = true; }, 300);
+  }
+
+  editor.addEventListener("load", function () { setTimeout(hide, 3000); });
+  overlay.addEventListener("click", hide);
+  setTimeout(hide, 20000);
+})();
