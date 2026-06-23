@@ -1,72 +1,114 @@
-/* Design tokens. A Swiss-technical system: neutral grotesk for prose,
-   monospace for code/identifiers, strictly monochrome — colour carries
-   state (error, success) and nothing else. Square corners, hairline
-   rules, generous whitespace.
+/* Design tokens. A Swiss-technical system with one accent: a neutral
+   grotesk for prose, monospace for code/identifiers, square corners,
+   hairline rules, generous whitespace. The monochrome base carries
+   structure; a single accent (clay/terracotta — a nod to the project
+   name) carries brand and emphasis. State colours (danger, success)
+   remain independent.
 
-   Theming is three-way: light is the default, the dark palette applies
-   both when the OS asks for it (prefers-color-scheme) and when the user
-   forces it (html[data-theme="dark"]); html[data-theme="light"] opts
-   back out of the OS preference. The dark block is intentionally
-   duplicated — vanilla CSS can't share a declaration list across two
-   selectors, and a short token list reads more clearly than a hack. */
+   Theming follows the OS: light is the default, and the dark palette
+   applies whenever prefers-color-scheme asks for it. There is no manual
+   override — one less piece of chrome, and the rendered Clay notebook
+   (an iframe) tracks the same OS preference (see proxy/fix-clay-reload). */
 
 :root {
   color-scheme: light;
 
   --bg: #ffffff;
-  --bg-raised: #f5f5f4;
+  --bg-raised: #f6f5f2;
+  --bg-sunken: #efede8;
   --fg: #16161a;
   --fg-muted: #6a6a73;
+  --fg-subtle: #9a9aa3;
   --border: #e3e3e0;
   --border-strong: #16161a;
 
-  /* State — the only colour in the system. */
+  /* Accent — the one brand colour. Used sparingly: the wordmark glyph,
+     primary actions, hero emphasis, focus rings. */
+  --accent: #b15d3c;
+  --accent-hover: #95492c;
+  --accent-fg: #ffffff;
+  --accent-bg: #f7ede6;
+  --accent-border: #b15d3c;
+  --accent-soft: #efe2d8;
+
+  /* State — independent of the accent. */
   --danger: #b3261e;
   --danger-bg: #fbeceb;
   --success: #1a7f37;
+  --success-bg: #e9f3eb;
 
   --font-sans: system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 
-  --measure: 64ch;
+  /* Measures: rem for the page container (predictable), ch for flowing
+     text (tracks the reading rhythm). One container width, shared by the
+     header, main, and footer so they stay edge-aligned. */
+  --measure: 60rem;
+  --measure-prose: 58ch;
+
   --radius: 0;
+  --radius-sm: 0;
   --hairline: 1px;
 
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 1rem;
-  --space-4: 2rem;
-  --space-5: 4rem;
+  /* Spacing — a 4px grid. Each step is a clean rem value; the early
+     steps add 4px each, then the ratio opens up for section-level
+     whitespace. Every dimension in the UI should draw from this scale. */
+  --space-1: 0.25rem;  /*  4px */
+  --space-2: 0.5rem;   /*  8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px — base */
+  --space-5: 1.5rem;   /* 24px */
+  --space-6: 2rem;     /* 32px */
+  --space-7: 3rem;     /* 48px */
+  --space-8: 4rem;     /* 64px */
+  --space-9: 6rem;     /* 96px */
+  --space-10: 10rem;   /* 160px */
+
+  /* Icon size — feature/hero icons, on the spacing grid. */
+  --size-icon-lg: 1.5rem;  /* 24px */
+
+  /* Spinner — matches --size-icon-lg so loading glyphs read at the same
+     visual weight as a feature icon. */
+  --size-spinner: 1.5rem;
+
+  /* Major-third type scale (1.250). */
+  --step--1: 0.8rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: 1.5625rem;
+  --step-3: 1.953rem;
+  --step-4: 2.441rem;
+  --step-5: 3.052rem;
+
+  /* Motion — two speeds only. Fast for state changes (hover, focus);
+     slow for layout transitions (fades, collapses). */
+  --transition-fast: 0.15s ease;
+  --transition-slow: 0.3s ease;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root {
     color-scheme: dark;
 
     --bg: #0d0d0f;
     --bg-raised: #18181b;
+    --bg-sunken: #08080a;
     --fg: #ededf0;
     --fg-muted: #8a8a93;
+    --fg-subtle: #5e5e68;
     --border: #2a2a30;
     --border-strong: #ededf0;
+
+    --accent: #e89679;
+    --accent-hover: #f3a98c;
+    --accent-fg: #1a0f0a;
+    --accent-bg: #2a1814;
+    --accent-border: #e89679;
+    --accent-soft: #1f1714;
 
     --danger: #ff6b61;
     --danger-bg: #2a1411;
     --success: #4ac26b;
+    --success-bg: #11251a;
   }
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-
-  --bg: #0d0d0f;
-  --bg-raised: #18181b;
-  --fg: #ededf0;
-  --fg-muted: #8a8a93;
-  --border: #2a2a30;
-  --border-strong: #ededf0;
-
-  --danger: #ff6b61;
-  --danger-bg: #2a1411;
-  --success: #4ac26b;
 }

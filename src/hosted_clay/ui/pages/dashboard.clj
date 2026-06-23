@@ -11,10 +11,18 @@
   [ts]
   (when ts (subs ts 0 (min 10 (count ts)))))
 
+(defn- status-badge [status]
+  (let [cls (case status
+              "ready"  "badge--ready"
+              "failed" "badge--failed"
+              "badge--provisioning")]
+    [:span.badge {:class cls} status]))
+
 (defn- no-notebook []
-  [:section.card
+  [:section.card.card--accent
+   [:p.eyebrow "Start here"]
    [:h2 "Create your notebook"]
-   [:p
+   [:p.lead
     "You get one free notebook: a private Linux machine with Clay, "
     "Noj, and a browser editor, ready in seconds."]
    [:form {:method "post" :action "/notebooks" :data-submit-label "Creating…"}
@@ -23,7 +31,7 @@
      [:input {:type "text" :id "title" :name "title"
               :value "My notebook" :required true :maxlength 120}]]
     [:button.button--primary {:type "submit"} "Create notebook"]]
-   [:p.muted
+   [:p.subtle
     "If no pre-warmed environment is free, creating one takes a couple of "
     "minutes while it's built — we'll show progress."]])
 
@@ -34,8 +42,9 @@
 
 (defn- ready-body [id share-url]
   (list
-   [:p [:a.button.button--primary {:href (str "/notebooks/" id)} "Open notebook"]]
-   [:p.muted "Edit the source and see the rendered output side by side."]
+   [:div.actions
+    [:a.button.button--primary {:href (str "/notebooks/" id)} "Open notebook"]
+    [:span.muted "Edit the source and see the rendered output side by side."]]
    [:h3 "Share"]
    [:div.copyable
     [:code share-url]
@@ -43,18 +52,20 @@
    [:p.muted "Anyone with this link can view the rendered notebook (read-only)."]
    [:hr]
    (delete-form id)
-   [:p.muted "Untouched for 30 days, a notebook is deleted automatically; "
+   [:p.subtle
+    "Untouched for 30 days, a notebook is deleted automatically; "
     "we email a warning first."]))
 
 (defn- provisioning-body [id]
   (list
    [:p.status-line [:span.spinner] "Setting up the environment…"]
-   [:p [:a.button {:href (str "/notebooks/" id)} "View progress"]]))
+   [:div.actions
+    [:a.button {:href (str "/notebooks/" id)} "View progress"]]))
 
 (defn- failed-body [id]
   (list
    [:p.notice.notice--error "Setup didn't finish."]
-   [:p [:a.button.button--primary {:href (str "/notebooks/" id)} "Open notebook"]]
+   [:a.button.button--primary {:href (str "/notebooks/" id)} "Open notebook"]
    [:hr]
    (delete-form id)))
 
@@ -63,10 +74,11 @@
         status    (:notebooks/status notebook)
         share-url (str base-url "/s/" (:notebooks/share-token notebook) "/")]
     [:section.card
-     [:h2 (:notebooks/title notebook)]
-     [:dl.meta
-      [:dt "created"] [:dd (day (:notebooks/created-at notebook))]
-      [:dt "status"] [:dd status]]
+     [:div.section-head
+      [:h2 (:notebooks/title notebook)]
+      [:dl.meta
+       [:dt "created"] [:dd (day (:notebooks/created-at notebook))]
+       [:dt "status"]  [:dd (status-badge status)]]]
      (case status
        "ready"  (ready-body id share-url)
        "failed" (failed-body id)
@@ -78,8 +90,9 @@
    [:div
     (header)
     [:main
-     [:h1 "Dashboard"]
-     [:p.muted [:span.mono (:users/email user)]]
+     [:p.eyebrow "Dashboard"]
+     [:h1 "Your notebook"]
+     [:p.lead [:span.mono (:users/email user)]]
      (if notebook
        (notebook-card notebook base-url)
        (no-notebook))]]))

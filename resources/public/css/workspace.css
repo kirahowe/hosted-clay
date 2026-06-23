@@ -17,21 +17,25 @@ body.workspace-body { overflow: hidden; }
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-5);
   border-bottom: var(--hairline) solid var(--border);
   background: var(--bg);
-  font-size: 0.9rem;
+  font-size: var(--step--1);
 }
 
-.workspace-home { text-decoration: none; white-space: nowrap; }
-.workspace-home:hover { text-decoration: underline; }
+.workspace-home {
+  text-decoration: none;
+  white-space: nowrap;
+  color: var(--fg-muted);
+}
+.workspace-home:hover { text-decoration: none; color: var(--accent); }
 
 .workspace-title {
   flex: 1 1 auto;
   min-width: 0;
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: var(--step--1);
   color: var(--fg-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -41,23 +45,24 @@ body.workspace-body { overflow: hidden; }
 .workspace-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-5);
 }
 
 /* Bar actions are text buttons, not the bordered default — they sit in a
    dense toolbar, not a content flow. */
 .workspace-action {
   font: inherit;
-  font-size: 0.9rem;
-  color: inherit;
+  font-size: var(--step--1);
+  color: var(--fg-muted);
   background: none;
   border: 0;
   border-radius: var(--radius);
   padding: 0;
   cursor: pointer;
+  transition: color var(--transition-fast);
 }
-.workspace-action:hover { background: none; color: var(--fg); text-decoration: underline; }
-.workspace-action:disabled { color: var(--fg-muted); cursor: default; text-decoration: none; }
+.workspace-action:hover { background: none; color: var(--accent); text-decoration: none; }
+.workspace-action:disabled { color: var(--fg-subtle); cursor: default; text-decoration: none; }
 .workspace-action[data-copied="true"] { color: var(--success); text-decoration: none; }
 
 /* The split. The editor pane's width lives in a custom property so the
@@ -88,10 +93,10 @@ body.workspace-body { overflow: hidden; }
   z-index: 1;
   display: grid;
   place-items: center;
-  padding: var(--space-4);
+  padding: var(--space-6);
   background: var(--bg);
   text-align: center;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--transition-slow);
 }
 .editor-loading[hidden] { display: none; }
 .editor-loading.fading { opacity: 0; }

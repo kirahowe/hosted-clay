@@ -28,8 +28,7 @@
           :title "Restart the notebook environment if the output stops responding"}
          "Restart"]
         [:button.workspace-action {:type "button" :data-copy share-url}
-         "Copy share link"]
-        (layout/theme-toggle)]]
+         "Copy share link"]]]
       [:div.workspace-panes
        [:section.workspace-pane.workspace-editor
         [:div.editor-loading {:data-editor-loading true}
@@ -66,16 +65,18 @@
    notebook " — setting up" {:data-provision (:notebooks/id notebook)}
    (list
     [:div.spinner {:role "status" :aria-label "Setting up"}]
+    [:p.eyebrow "Setting up"]
     [:h1 "Spinning up your notebook"]
-    [:p.muted "This can sometimes take a couple of minutes."])))
+    [:p.lead "This can sometimes take a couple of minutes."])))
 
 (defn render-failed [notebook]
   (let [id (:notebooks/id notebook)]
     (status-page
      notebook " — setup failed" {}
      (list
+      [:p.eyebrow "Setup failed"]
       [:h1 "Setup didn't finish"]
-      [:p.muted
+      [:p.lead
        "Something went wrong while building your environment. You can try "
        "again, or delete it and start over."]
       [:div.actions

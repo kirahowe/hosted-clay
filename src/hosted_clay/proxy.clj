@@ -8,7 +8,8 @@
    upgrades (Clay live-reload, code-server) are relayed frame-by-frame
    between the browser (http-kit channel) and the sprite (java.net.http
    WebSocket)."
-  (:require [clojure.string :as str]
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [clojure.tools.logging :as log]
             [org.httpkit.client :as http-client]
             [org.httpkit.server :as http-server]
@@ -106,6 +107,39 @@
       (str/replace "fetch('/counter')" "fetch('counter')")
       (str/replace "\"/Clay.svg.png\"" "\"Clay.svg.png\"")))
 
+;; ---------- dark mode ----------
+
+(def ^:private theme-head
+  ;; The dark-mode <head> we splice into every Clay page. Clay bundles
+  ;; Bootstrap 5.3 (Bootswatch "cosmo"), whose dark palette is opt-in via
+  ;; data-bs-theme — it does NOT auto-follow prefers-color-scheme. So:
+  ;;   - color-scheme meta: makes the iframe resolve prefers-color-scheme
+  ;;     against the OS rather than the (light) parent document;
+  ;;   - the inline bridge: flips data-bs-theme from the OS preference,
+  ;;     before paint (no flash) and live (the `change` listener), which
+  ;;     turns on Bootstrap's dark chrome, prose, links, and .table tables;
+  ;;   - dark.css: patches the three surfaces Bootstrap can't reach
+  ;;     (highlight.js, DataTables, Plotly).
+  ;; Built once at load from the classpath resource.
+  (str "<meta name=\"color-scheme\" content=\"light dark\">"
+       "<script>(function(){var m=window.matchMedia('(prefers-color-scheme: dark)');"
+       "function s(){document.documentElement.setAttribute('data-bs-theme',m.matches?'dark':'light');}"
+       "s();m.addEventListener('change',s);})();</script>"
+       "<style>" (slurp (io/resource "clay/dark.css")) "</style>"))
+
+(defn- inject-theme
+  "Splice `theme-head` in just before </head> so its styles land after
+   Clay's own and win the cascade. A no-op on a page without a </head>
+   (e.g. a fragment), like the reload fixups."
+  [html]
+  (str/replace html "</head>" (str theme-head "</head>")))
+
+(defn- rewrite-clay-html
+  "The full transform applied to a Clay HTML response: fix its reload URLs
+   for our proxy prefix, then give it OS-following dark mode."
+  [html]
+  (-> html fix-clay-reload inject-theme))
+
 ;; ---------- plain HTTP ----------
 
 (defn- wants-html?
@@ -138,7 +172,7 @@
         (if (and body (not (editor-path? path)) (html-response? resp-headers))
           {:status  status
            :headers resp-headers
-           :body    (fix-clay-reload (slurp body :encoding "UTF-8"))}
+           :body    (rewrite-clay-html (slurp body :encoding "UTF-8"))}
           {:status  status
            :headers resp-headers
            :body    body})))))

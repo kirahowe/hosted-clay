@@ -6,6 +6,7 @@
             [hosted-clay.proxy :as proxy]))
 
 (def ^:private fix-clay-reload #'proxy/fix-clay-reload)
+(def ^:private inject-theme #'proxy/inject-theme)
 (def ^:private editor-path? #'proxy/editor-path?)
 
 (deftest clay-reload-rewrite
@@ -38,6 +39,23 @@
   (testing "a page without Clay's snippet (e.g. code-server) is untouched"
     (let [html "<html><head></head><body>editor with a ws://localhost:9 mention</body></html>"]
       (is (= html (fix-clay-reload html))))))
+
+(deftest clay-dark-mode-injection
+  (testing "the dark-mode head is spliced in just before </head>"
+    (let [html "<html><head><title>nb</title></head><body>x</body></html>"
+          out  (inject-theme html)]
+      (is (str/includes? out "name=\"color-scheme\"")
+          "the iframe declares it supports both schemes")
+      (is (str/includes? out "data-bs-theme")
+          "the prefers-color-scheme -> data-bs-theme bridge is present")
+      (is (str/includes? out "prefers-color-scheme: dark")
+          "the dark stylesheet is inlined")
+      (is (< (str/index-of out "data-bs-theme") (str/index-of out "</head>"))
+          "the injection lands inside <head>, before its close")))
+
+  (testing "a page without a </head> (e.g. a fragment) is left untouched"
+    (let [html "<div>just a fragment</div>"]
+      (is (= html (inject-theme html))))))
 
 (deftest editor-path-detection
   (testing "code-server paths are recognized so they're never rewritten"

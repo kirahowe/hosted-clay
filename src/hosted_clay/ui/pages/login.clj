@@ -22,9 +22,12 @@
    [:div
     (layout/site-header)
     [:main
-     [:h1 "Sign in"]
-     [:p.muted
-      "Sign in with a passkey or a one-time email code. New here? "
-      "Signing in creates your account."]
-     [:hanko-auth]
-     [:script {:type "module"} (hanko-island api-url)]]]))
+     [:div.status
+      [:div.status-card
+       [:p.eyebrow "Sign in"]
+       [:h1 "Welcome"]
+       [:p.lead
+        "Sign in with a passkey or a one-time email code. New here? "
+        "Signing in creates your account."]
+       [:hanko-auth]
+       [:script {:type "module"} (hanko-island api-url)]]]]]))

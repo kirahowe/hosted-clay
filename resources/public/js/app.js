@@ -1,36 +1,13 @@
 // Site-wide progressive enhancement. Each feature is a no-op unless its
 // hook attributes are present, so this one file can load on every page:
-//   [data-theme-toggle]  the light/dark switch
 //   [data-copy]          copy a value to the clipboard
 //   [data-submit-label]  show progress on a form's submit button
 //   [data-provision]     poll a provisioning notebook until it's ready
+//
+// Theming is OS-driven (prefers-color-scheme) and needs no JS — see
+// tokens.css and the theme-color metas in layout/page.
 (function () {
   "use strict";
-
-  function effectiveTheme() {
-    var explicit = document.documentElement.dataset.theme;
-    if (explicit) return explicit;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  }
-
-  // Keep the browser-chrome colour in step with the active background,
-  // including a manual override, by reading the live --bg token.
-  function syncThemeColor() {
-    var meta = document.querySelector('meta[name="theme-color"]');
-    if (!meta) return;
-    var bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
-    if (bg) meta.setAttribute("content", bg);
-  }
-  syncThemeColor();
-
-  document.querySelectorAll("[data-theme-toggle]").forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      var next = effectiveTheme() === "dark" ? "light" : "dark";
-      document.documentElement.dataset.theme = next;
-      try { localStorage.setItem("theme", next); } catch (e) {}
-      syncThemeColor();
-    });
-  });
 
   document.querySelectorAll("[data-copy]").forEach(function (btn) {
     btn.addEventListener("click", function () {
