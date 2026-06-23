@@ -26,6 +26,16 @@ if ! command -v code-server >/dev/null 2>&1; then
 fi
 code-server --install-extension betterthantomorrow.calva
 
+# --- clojure-lsp (editor autocomplete + navigation). Install our own binary
+# so Calva uses it (calva.clojureLspPath) instead of downloading one at
+# runtime — and so the version that pre-builds the analysis cache below is the
+# same one that reads it on editor open, guaranteeing the cache is reused.
+if ! command -v clojure-lsp >/dev/null 2>&1; then
+  curl -sL https://raw.githubusercontent.com/clojure-lsp/clojure-lsp/master/install \
+    -o /tmp/clojure-lsp-install
+  sudo bash /tmp/clojure-lsp-install
+fi
+
 # Collapse the primary sidebar (Explorer) on startup. There is no settings.json
 # key for this (microsoft/vscode#3742 is still open) and a task can't invoke a
 # VSCode command, so the activity-bar trick can't help. code-server stores
@@ -62,10 +72,24 @@ cat > "$ext_build/extension/package.json" <<'EOF'
 EOF
 cat > "$ext_build/extension/extension.js" <<'EOF'
 const vscode = require("vscode");
-function activate() {
+function activate(context) {
   // Fired once at activation (onStartupFinished). closeSidebar is a no-op when
   // the sidebar is already hidden, so it's safe on warm wakes too.
   vscode.commands.executeCommand("workbench.action.closeSidebar");
+  // Pull keyboard focus into the editor as soon as the notebook opens, so a
+  // user typing on first load lands in the code — not the terminal or a tree,
+  // where keystrokes become type-ahead and backspace does nothing. One-shot:
+  // stop once focused so it never fights the terminal afterward.
+  let focused = false;
+  const focus = () => {
+    if (focused || !vscode.window.activeTextEditor) return;
+    focused = true;
+    vscode.commands.executeCommand("workbench.action.focusActiveEditorGroup");
+    sub.dispose();
+  };
+  const sub = vscode.window.onDidChangeActiveTextEditor(focus);
+  context.subscriptions.push(sub);
+  focus();
 }
 function deactivate() {}
 module.exports = { activate, deactivate };
@@ -110,13 +134,15 @@ rm -rf "$ext_build"
 # Shape code-server into a focused single-namespace editor and auto-connect
 # the REPL. Three things going on here:
 #
-#  1. Quiet Calva down. The primary loop is save -> Clay live-reload; it
-#     needs neither clojure-lsp nor Calva jack-in, both of which otherwise
-#     saturate a constrained sprite on first editor open (clojure-lsp
-#     indexes the whole Noj classpath; jack-in shells out `clojure -X:deps
-#     find-versions`, dragging down the Maven tooling tree) and stall saves
-#     and the live-reload WebSocket. So lsp-on-start is off and jack-in
-#     versions are pinned (no "latest version" resolution).
+#  1. Tame Calva's startup costs. Both clojure-lsp and Calva jack-in can
+#     saturate a constrained sprite on first editor open — clojure-lsp indexes
+#     the whole Noj classpath; jack-in shells out `clojure -X:deps
+#     find-versions`, dragging down the Maven tooling tree — stalling saves and
+#     the live-reload WebSocket. So jack-in stays out of the loop (we connect,
+#     not jack-in; versions pinned, no "latest" resolution), and clojure-lsp is
+#     pinned to a pre-installed binary (`calva.clojureLspPath`) whose analysis
+#     cache is pre-built during provisioning (below). Autocomplete is on, but
+#     the heavy indexing is paid in the warm pool, not on the user's first open.
 #  2. Auto-connect the REPL with no prompts. At extension-host activation
 #     `autoConnectRepl` looks *once* for the `.nrepl-port` file and connects
 #     if it's there (it does not watch for it or retry — see the gate in
@@ -148,7 +174,8 @@ rm -rf "$ext_build"
 mkdir -p /home/sprite/.local/share/code-server/User
 cat > /home/sprite/.local/share/code-server/User/settings.json <<'EOF'
 {
-  "calva.enableClojureLspOnStart": "never",
+  "calva.enableClojureLspOnStart": "auto",
+  "calva.clojureLspPath": "/usr/local/bin/clojure-lsp",
   "calva.autoConnectRepl": true,
   "calva.jackInDependencyVersions": {
     "nrepl": "1.7.0",
@@ -299,6 +326,14 @@ clojure -P -M:watch
 for lib in nrepl/nrepl cider/cider-nrepl cider/piggieback; do
   clojure -X:deps find-versions :lib "$lib" :n 1 >/dev/null 2>&1 || true
 done
+
+# Pre-build clojure-lsp's analysis cache (.lsp/.cache + .clj-kondo/.cache in
+# the notebook dir, both already hidden from the explorer) so the first editor
+# open reuses it instead of indexing the Noj classpath live — the CPU-heavy
+# step that first-open stall came from. Runs here in the warm pool, off the
+# user's path. Best-effort: a hiccup must not fail provisioning (lsp would just
+# index on first open, as it did before).
+( cd /home/sprite/notebook && clojure-lsp diagnostics >/dev/null 2>&1 ) || true
 
 # --- Services: owned by the sprite runtime, restarted on cold boot.
 # caddy gets the http_port, so the sprite URL routes to it.

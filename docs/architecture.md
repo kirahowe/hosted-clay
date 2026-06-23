@@ -64,10 +64,13 @@ work), installed by `resources/sprite/setup.sh` over the exec WebSocket:
   positional, so it opens as a real workspace — Calva's project detection
   needs that), shaped into a focused single-file editor by a baked
   `settings.json`:
-  - **Calva quieted** — clojure-lsp-on-start off, jack-in versions pinned.
-    On a constrained free sprite, lsp classpath indexing + `find-versions`
-    otherwise peg the CPU and stall saves and the live-reload WebSocket.
-    Neither is needed (the primary loop is save -> Clay live-reload).
+  - **Calva startup tamed** — jack-in versions pinned, and clojure-lsp pinned
+    to a pre-installed binary (`calva.clojureLspPath`) whose analysis cache is
+    pre-built during provisioning. On a constrained free sprite, lsp classpath
+    indexing + `find-versions` otherwise peg the CPU and stall saves and the
+    live-reload WebSocket; paying the indexing in the warm pool keeps
+    autocomplete on without that first-open stall (jack-in isn't needed at all —
+    we connect to the running nREPL).
   - **REPL connected, not jacked-in** — a `replConnectSequences` entry
     auto-connects to the already-running nREPL with no prompts, and
     `bin/wait-repl.sh` gates code-server's launch until the nREPL port is
@@ -78,9 +81,11 @@ work), installed by `resources/sprite/setup.sh` over the exec WebSocket:
   - **Focused chrome** — activity bar + minimap hidden, AI/agent surface
     off, scaffolding hidden from the explorer (`files.exclude`) and Quick
     Open (`search.exclude`); the sidebar is collapsed on startup by a small
-    first-party extension (no setting exists for it). The terminal is kept.
-    The editor follows the browser's light/dark preference
-    (`window.autoDetectColorScheme`), matching the rest of the workspace chrome.
+    first-party extension (no setting exists for it), which also pulls focus
+    into the editor once the notebook opens, so first keystrokes land in the
+    code rather than a tree or the terminal. The terminal is kept. The editor
+    follows the browser's light/dark preference (`window.autoDetectColorScheme`),
+    matching the rest of the workspace chrome.
   - **Auto-open** — `.vscode/tasks.json` `folderOpen` tasks open
     `notebook.clj` and an interactive terminal; the editor iframe also
     carries `?folder=` to pin the workspace from the browser side.
