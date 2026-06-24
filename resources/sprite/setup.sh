@@ -25,6 +25,13 @@ if ! command -v code-server >/dev/null 2>&1; then
   curl -fsSL https://code-server.dev/install.sh | sh
 fi
 code-server --install-extension betterthantomorrow.calva
+# Calva Power Tools: adds the Clay editor commands — Make Current Form /
+# Make Top Level Form (ctrl+shift+space a c / a a) — which evaluate a single
+# form through `scicloj.clay.v2.snippets/make-form-html!` in the connected
+# REPL, re-rendering just that form in the running Clay view. This is the
+# normal form-by-form Clojure workflow alongside save-to-re-render. Depends on
+# Calva (installed above) and is pulled from Open VSX, same as Calva.
+code-server --install-extension betterthantomorrow.calva-power-tools
 
 # --- clojure-lsp (editor autocomplete + navigation). Install our own binary
 # so Calva uses it (calva.clojureLspPath) instead of downloading one at
