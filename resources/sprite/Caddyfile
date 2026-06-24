@@ -13,6 +13,17 @@
 		reverse_proxy 127.0.0.1:8443
 	}
 
+	# Readiness marker. The notebook JVM writes /home/sprite/repl-ready the
+	# moment Calva connects (calva.autoEvaluateCode.onConnect in setup.sh);
+	# start.sh clears it on each REPL start. The workspace page polls this
+	# through the owner proxy to keep the editor's loading overlay up until the
+	# REPL is actually connected. 200 once present, 404 until then. Scoped to
+	# the exact path, so only this one file under /home/sprite is ever served.
+	handle /repl-ready {
+		root * /home/sprite
+		file_server
+	}
+
 	handle {
 		reverse_proxy 127.0.0.1:1971
 	}

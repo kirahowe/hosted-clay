@@ -153,7 +153,19 @@ rm -rf "$ext_build"
 #     otherwise block the connection and pins the target port. Connect, not
 #     jack-in — the nREPL is already running. The `notebook` ns is loaded by
 #     Clay at boot, so eval works immediately (no "load file" step). lsp is
-#     static analysis, independent of the running REPL.
+#     static analysis, independent of the running REPL. The
+#     `autoEvaluateCode.onConnect.clj` runs the moment Calva connects (right
+#     after it marks the session connected and evaluatable) — we keep Calva's
+#     default repl-requires setup and append a `spit` of a readiness marker
+#     (/home/sprite/repl-ready, served by Caddy at /repl-ready) so the
+#     workspace page can hold its loading overlay up until the REPL is
+#     genuinely connected, not just until the iframe paints. start.sh clears
+#     the marker on each REPL start so it never reads stale. The object MUST
+#     carry the full shape (both onConnect.{clj,cljs} and onFileLoaded.{clj,
+#     cljs}) even though we only use onConnect.clj: Calva's config merge reads
+#     every `config[key][lang]` unconditionally, so a partial object throws a
+#     TypeError out of getConfig() and silently skips the onConnect eval — the
+#     marker never gets written and the overlay hangs to its cap.
 #  3. Strip the IDE chrome. Hide the activity bar/minimap and the
 #     scaffolding files (deps.edn, watch.clj, Caddyfile, bin/, dotdirs) from
 #     the explorer (`files.exclude`, which also keeps them out of Quick
@@ -193,6 +205,16 @@ cat > /home/sprite/.local/share/code-server/User/settings.json <<'EOF'
       "cljsType": "none"
     }
   ],
+  "calva.autoEvaluateCode": {
+    "onConnect": {
+      "clj": "(do (when-let [requires (resolve 'clojure.main/repl-requires)] (clojure.core/apply clojure.core/require @requires)) (spit \"/home/sprite/repl-ready\" \"ok\"))",
+      "cljs": "(require '[cljs.repl :refer [apropos dir doc find-doc print-doc pst source]])"
+    },
+    "onFileLoaded": {
+      "clj": null,
+      "cljs": null
+    }
+  },
   "editor.formatOnSave": false,
   "editor.minimap.enabled": false,
   "files.autoSave": "off",
@@ -267,6 +289,10 @@ cat > /home/sprite/notebook/bin/start.sh <<'EOF'
 #!/usr/bin/env bash
 source /home/sprite/notebook/bin/env.sh
 cd /home/sprite/notebook
+# Clear the REPL-readiness marker: this nREPL has no Calva connection yet, so
+# its presence (re-created by autoEvaluateCode.onConnect once Calva connects)
+# always means "connected since this REPL started", never a stale prior boot.
+rm -f /home/sprite/repl-ready
 exec clojure -M:watch
 EOF
 

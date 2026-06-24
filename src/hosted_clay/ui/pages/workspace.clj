@@ -34,8 +34,8 @@
         [:div.editor-loading {:data-editor-loading true}
          [:div.status-card
           [:div.spinner {:role "status" :aria-label "Starting the editor"}]
-          [:p.muted "Starting the editor — opening your notebook and a "
-           "terminal. This takes a few seconds."]]]
+          [:p.muted "Starting the editor — opening your notebook and "
+           "connecting the REPL. This takes a few seconds."]]]
         [:iframe {:src   editor-src
                   :title "Editor"
                   :allow "clipboard-read; clipboard-write"}]]

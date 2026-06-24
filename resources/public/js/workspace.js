@@ -102,24 +102,35 @@
   });
 })();
 
-// Editor pane: code-server loads, then assembles the workspace (opens the
-// notebook, the terminal, connects the REPL) over a few more seconds, and
-// signals none of it. Keep a "starting" overlay up so the wait is obvious;
-// hide it shortly after the iframe loads, on click, or at a hard cap.
+// Editor pane: code-server loads, then Calva connects to the REPL a few
+// seconds later — until then the editor is up but "open" eval does nothing.
+// The notebook JVM writes a readiness marker the moment Calva connects (its
+// autoEvaluateCode.onConnect eval, served by Caddy at /repl-ready — see
+// resources/sprite/setup.sh). Poll that marker through the owner proxy and
+// keep the "starting" overlay up until it appears, so the editor is revealed
+// only once it's actually usable. Click-to-dismiss and a hard cap remain so a
+// missed signal can never strand the overlay.
 (function () {
   var overlay = document.querySelector("[data-editor-loading]");
-  var editor = document.querySelector(".workspace-editor iframe");
-  if (!overlay || !editor) return;
+  var workspace = document.querySelector(".workspace");
+  var id = workspace && workspace.dataset.notebookId;
+  if (!overlay || !id) return;
 
   var hidden = false;
+  var poll;
   function hide() {
     if (hidden) return;
     hidden = true;
+    if (poll) clearInterval(poll);
     overlay.classList.add("fading");
     setTimeout(function () { overlay.hidden = true; }, 300);
   }
 
-  editor.addEventListener("load", function () { setTimeout(hide, 3000); });
+  poll = setInterval(function () {
+    fetch("/n/" + id + "/repl-ready", { cache: "no-store" })
+      .then(function (r) { if (r.ok) hide(); })
+      .catch(function () {});
+  }, 1000);
   overlay.addEventListener("click", hide);
-  setTimeout(hide, 20000);
+  setTimeout(hide, 45000);
 })();
