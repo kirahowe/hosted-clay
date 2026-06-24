@@ -53,16 +53,43 @@
 (defn get-sprite [client name]
   (request! client :get (str "/v1/sprites/" name)))
 
+(def ^:private delete-retry-waits-ms
+  ;; The API documents only 204/401/404 for delete, so a 5xx is an
+  ;; undocumented, typically transient failure — or a concurrent delete (two
+  ;; tabs / a double-click) catching the sprite mid-teardown. Retry a couple
+  ;; of times with backoff before surfacing it: a sprite the API refuses to
+  ;; delete leaks money. Each element is the wait before the next attempt, so
+  ;; this is N attempts after the first.
+  [1000 2000])
+
 (defn delete-sprite!
-  "Delete a sprite and all its state. Tolerates 404 — deleting an
-   already-gone sprite is the desired end state, not an error."
+  "Delete a sprite and all its state. Idempotent and self-healing: tolerates
+   404 (already gone is the goal, not an error) and retries a 5xx with
+   backoff (a transient platform error, or a racing concurrent delete that
+   caught the sprite mid-teardown). Any other non-2xx propagates. Safe to
+   call twice for the same sprite — the loser of a delete race just sees the
+   404 and returns."
   [client name]
-  (try
-    (request! client :delete (str "/v1/sprites/" name))
-    (catch clojure.lang.ExceptionInfo e
-      (if (= 404 (:status (ex-data e)))
-        (log/info "sprite already gone" {:sprite name})
-        (throw e)))))
+  (loop [waits delete-retry-waits-ms]
+    (let [retry?
+          (try
+            (request! client :delete (str "/v1/sprites/" name))
+            false
+            (catch clojure.lang.ExceptionInfo e
+              (let [status (:status (ex-data e))]
+                (cond
+                  (= 404 status)
+                  (do (log/info "sprite already gone" {:sprite name}) false)
+
+                  (and (some? status) (<= 500 status 599) (seq waits))
+                  true
+
+                  :else
+                  (throw e)))))]
+      (when retry?
+        (log/warn "sprite delete returned 5xx; retrying" {:sprite name :wait-ms (first waits)})
+        (Thread/sleep (long (first waits)))
+        (recur (rest waits))))))
 
 (defmethod ig/init-key :hosted-clay.sprites/client [_ {:keys [api-url token]}]
   {:api-url (str/replace (str api-url) #"/+$" "")

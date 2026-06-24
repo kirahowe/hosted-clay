@@ -103,9 +103,13 @@
   (crud/update! ds :notebooks (:notebooks/id notebook) {:status "provisioning"}))
 
 (defn delete!
-  "Delete a notebook and its sprite. The sprite goes first: if that
-   fails the row survives and the reaper or a retry can finish the job,
-   whereas a dangling sprite with no row would leak money invisibly."
+  "Delete a notebook and its sprite. The sprite goes first (and
+   `delete-sprite!` retries a transient 5xx and tolerates a 404): if it
+   still fails the row survives so a re-delete can finish the job, whereas a
+   dangling sprite with no row would leak money invisibly. Safe to call
+   twice for the same notebook — the sprite delete is 404-tolerant and the
+   row delete is a 0-row no-op — so the two-tabs/double-submit race converges
+   instead of erroring."
   [ds client notebook]
   (sprites/delete-sprite! client (:notebooks/sprite-name notebook))
   (crud/delete! ds :notebooks (:notebooks/id notebook))

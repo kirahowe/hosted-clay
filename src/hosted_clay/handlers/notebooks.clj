@@ -93,11 +93,16 @@
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/delete
   [_ {:keys [datasource sprites-client]}]
+  ;; Idempotent: delete the sprite + row when the caller owns a still-present
+  ;; notebook, then always redirect to the dashboard. A second delete for the
+  ;; same notebook — the two-tabs / double-submit race — finds the row already
+  ;; gone and still lands on the dashboard instead of a 404 page. The response
+  ;; is identical whether the notebook was there or not, so ids stay
+  ;; unprobeable (same reasoning as with-owned-notebook's 404-on-miss).
   (fn [req]
-    (with-owned-notebook datasource req
-      (fn [notebook]
-        (notebooks/delete! datasource sprites-client notebook)
-        (response/see-other "/dashboard")))))
+    (when-let [notebook (owned-notebook datasource req)]
+      (notebooks/delete! datasource sprites-client notebook))
+    (response/see-other "/dashboard")))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/restart
   [_ {:keys [datasource sprites-client]}]
