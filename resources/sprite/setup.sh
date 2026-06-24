@@ -241,6 +241,7 @@ cat > /home/sprite/.local/share/code-server/User/settings.json <<'EOF'
   "update.mode": "none",
   "files.exclude": {
     "deps.edn": true,
+    "clay.edn": true,
     "watch.clj": true,
     "Caddyfile": true,
     ".nrepl-port": true,
@@ -253,6 +254,7 @@ cat > /home/sprite/.local/share/code-server/User/settings.json <<'EOF'
   },
   "search.exclude": {
     "deps.edn": true,
+    "clay.edn": true,
     "watch.clj": true,
     "Caddyfile": true,
     ".nrepl-port": true,

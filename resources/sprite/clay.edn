@@ -1,0 +1,16 @@
+;; Clay project config for the notebook sprite. Read from the JVM's working
+;; directory (/home/sprite/notebook) on every `make!` call.
+;;
+;; `:browse :browser` suppresses Calva's "flare" — the in-editor webview Clay
+;; asks Calva to open when a form is rendered with `{:ide :calva}` (the option
+;; Calva Power Tools' Clay commands pass). That webview targets the sprite's
+;; internal http://localhost:1971/, which the browser can't reach, so it just
+;; renders a dead "Unable to connect" pane next to the editor. Clay only emits
+;; the flare when `(and ide (not= browse :browser))` (clay's make.clj), so
+;; `:browse :browser` turns it off. The form still renders into the running
+;; Clay server — which our workspace already shows in the live output pane — so
+;; nothing is lost. Clay would only actually open a browser when no live-reload
+;; client is connected; our output pane always is (and the sprite is headless),
+;; so nothing pops. The whole-file render in watch.clj passes an explicit
+;; `:browse false` and no `:ide`, so it overrides this and is unaffected.
+{:browse :browser}

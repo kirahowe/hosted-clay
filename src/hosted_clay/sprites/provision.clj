@@ -1,7 +1,7 @@
 (ns hosted-clay.sprites.provision
   "Turn a freshly created sprite into a notebook sprite: upload the
    notebook skeleton (deps.edn, starter notebook, watch entry point,
-   Caddyfile), then run setup.sh, which installs the toolchain,
+   Clay config, Caddyfile), then run setup.sh, which installs the toolchain,
    pre-fetches dependencies, and registers the caddy/notebook/code-server
    services with the sprite runtime."
   (:require [clojure.java.io :as io]
@@ -13,6 +13,7 @@
   {"sprite/deps.edn"     "/home/sprite/notebook/deps.edn"
    "sprite/notebook.clj" "/home/sprite/notebook/notebook.clj"
    "sprite/watch.clj"    "/home/sprite/notebook/watch.clj"
+   "sprite/clay.edn"     "/home/sprite/notebook/clay.edn"
    "sprite/tasks.json"   "/home/sprite/notebook/.vscode/tasks.json"
    "sprite/Caddyfile"    "/home/sprite/Caddyfile"})
 
