@@ -4,7 +4,7 @@
             [hosted-clay.ui.pages.dashboard :as dashboard]
             [hosted-clay.web.response :as response]))
 
-(defmethod ig/init-key :hosted-clay.handlers/dashboard [_ {:keys [datasource base-url]}]
+(defmethod ig/init-key :hosted-clay.handlers/dashboard [_ {:keys [datasource base-url usage-limit-hours]}]
   (fn [req]
     (let [notebook (notebooks/for-user datasource (:user-id req))]
-      (response/html (dashboard/render (:user req) notebook base-url)))))
+      (response/html (dashboard/render (:user req) notebook base-url usage-limit-hours)))))

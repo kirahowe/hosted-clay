@@ -100,8 +100,9 @@
  :hosted-clay.handlers/favicon {}
 
  :hosted-clay.handlers/dashboard
- {:datasource #ig/ref :hosted-clay.db/migrator
-  :base-url   #ig/ref :hosted-clay/base-url}
+ {:datasource        #ig/ref :hosted-clay.db/migrator
+  :base-url          #ig/ref :hosted-clay/base-url
+  :usage-limit-hours #ig/ref :hosted-clay/usage-limit-hours}
 
  :hosted-clay.handlers.notebooks/create
  {:datasource     #ig/ref :hosted-clay.db/migrator

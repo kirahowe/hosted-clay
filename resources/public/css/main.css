@@ -567,6 +567,36 @@ hanko-auth {
   --link-color: var(--accent);
 }
 
+/* ---------- usage meter ---------- */
+
+.usage-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  margin-bottom: var(--space-3);
+}
+.usage-figure { color: var(--fg); }
+.usage-pct { color: var(--fg-muted); }
+.usage-track {
+  height: var(--space-2);
+  background: var(--bg-sunken);
+  border: var(--hairline) solid var(--border);
+  margin-bottom: var(--space-4);
+  overflow: hidden;
+}
+.usage-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--transition-slow);
+}
+.usage .subtle {
+  font-size: var(--step--1);
+  max-width: var(--measure-prose);
+}
+
 /* ---------- responsive ---------- */
 
 @media (max-width: 640px) {

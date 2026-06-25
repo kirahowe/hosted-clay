@@ -1,5 +1,6 @@
 (ns hosted-clay.ui.pages.dashboard
-  (:require [hosted-clay.ui.layout :as layout]))
+  (:require [hosted-clay.ui.layout :as layout]
+            [hosted-clay.usage :as usage]))
 
 (defn- header []
   (layout/site-header
@@ -84,7 +85,37 @@
        "failed" (failed-body id)
        (provisioning-body id))]))
 
-(defn render [user notebook base-url]
+(defn- usage-meter
+  "An approximate monthly active-hours meter. The hours are sampled, not billed,
+   so the copy stays relaxed — a friendly estimate, not an invoice. A nil/0
+   limit (the cap disabled) drops the bar and the framing."
+  [notebook limit-hours]
+  (let [hours   (/ (usage/awake-seconds-this-month notebook) 3600.0)
+        whole   (Math/round hours)
+        capped? (and limit-hours (pos? limit-hours))
+        pct     (when capped? (min 100 (Math/round (* 100.0 (/ hours limit-hours)))))]
+    [:section.card.usage
+     [:p.eyebrow "Usage"]
+     [:div.usage-head
+      [:span.usage-figure
+       "≈ " (str whole) (when capped? (str " of " limit-hours)) " hours this month"]
+      (when (some? pct) [:span.usage-pct (str pct "%")])]
+     (when (some? pct)
+       [:div.usage-track {:role "progressbar" :aria-valuemin 0 :aria-valuemax 100
+                          :aria-valuenow pct :aria-label "Monthly active-hours used"
+                          :aria-valuetext (str whole " of " limit-hours " hours (" pct "%)")}
+        [:div.usage-fill {:style (str "width:" pct "%")}]])
+     [:p.subtle
+      (if capped?
+        (str "Everyone gets about " limit-hours " free hours of active notebook "
+             "time per month for now. We sample this roughly, so it's a friendly "
+             "estimate, not an exact bill — your notebook only counts time while "
+             "it's awake, and it resets at the start of next month.")
+        (str "Roughly how much active notebook time you've used this month. "
+             "There's no limit right now — your notebook only counts time while "
+             "it's awake, and this resets at the start of next month."))]]))
+
+(defn render [user notebook base-url limit-hours]
   (layout/page
    "Dashboard"
    [:div
@@ -94,5 +125,7 @@
      [:h1 "Your notebook"]
      [:p.lead [:span.mono (:users/email user)]]
      (if notebook
-       (notebook-card notebook base-url)
+       (list
+        (notebook-card notebook base-url)
+        (usage-meter notebook limit-hours))
        (no-notebook))]]))
