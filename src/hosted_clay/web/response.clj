@@ -49,6 +49,12 @@
   [message]
   (html 403 (layout/forbidden message)))
 
+(defn unavailable
+  "A 503 HTML page — a temporary pause that resolves on its own, not a
+   permanent denial."
+  [message]
+  (html 503 (layout/unavailable message)))
+
 (defn expire-cookie
   "Add a Set-Cookie header to `response` that immediately expires cookie `name`."
   [response name]

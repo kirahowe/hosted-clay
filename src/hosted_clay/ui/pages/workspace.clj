@@ -69,6 +69,23 @@
     [:h1 "Spinning up your notebook"]
     [:p.lead "This can sometimes take a couple of minutes."])))
 
+(defn render-over-limit
+  "Shown when a notebook has spent its monthly active-hours budget: the sprite
+   stays suspended (so it isn't billed) until the month rolls over, and the work
+   is untouched."
+  [notebook limit-hours]
+  (status-page
+   notebook " — paused for the month" {}
+   (list
+    [:p.eyebrow "Monthly limit reached"]
+    [:h1 "This notebook is paused for the month"]
+    [:p.lead
+     "It's used its " limit-hours " active hours for this month, so it's paused "
+     "to keep costs in check. Your work is saved — it'll be available again at "
+     "the start of next month."]
+    [:div.actions
+     [:a.button--primary {:href "/dashboard"} "← Back to dashboard"]])))
+
 (defn render-failed [notebook]
   (let [id (:notebooks/id notebook)]
     (status-page

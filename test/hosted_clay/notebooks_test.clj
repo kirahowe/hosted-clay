@@ -3,14 +3,21 @@
    with-redefs — these tests are about our orchestration (pool claim,
    one-per-user, lifecycle bookkeeping), not the wire."
   (:require [clojure.test :refer [deftest is testing]]
+            [integrant.core :as ig]
             [hosted-clay.db.crud :as crud]
             [hosted-clay.notebooks :as notebooks]
             [hosted-clay.pool :as pool]
+            [hosted-clay.proxy :as proxy]
             [hosted-clay.sprites.client :as sprites]
             [hosted-clay.sprites.provision :as provision]
             [hosted-clay.test-system :as ts]
+            [hosted-clay.usage :as usage]
             [hosted-clay.users :as users])
   (:import (java.time Duration Instant)))
+
+;; Load the handlers ns for its ig/init-key defmethods (the proxy handler under
+;; test); required for the side effect, so it's not an aliased ns require.
+(require 'hosted-clay.handlers.notebooks)
 
 (def client {:api-url "https://api.example.invalid" :token {:value "t"}})
 (def limits {:max-sprites 10})
@@ -139,3 +146,41 @@
                                      :state "ready"})
       (is (= "nb-1" (:sprite-name (pool/claim! ds))))
       (is (nil? (pool/claim! ds))))))
+
+(deftest open-proxy-blocks-over-limit-notebook
+  ;; The whole point of the usage budget: an over-limit notebook's proxy refuses
+  ;; to forward, so no request reaches (or wakes) the sprite. Stub the forward
+  ;; and touch! seams so we can assert they're skipped, not exercised.
+  (ts/with-db
+    (fn [ds]
+      (stub-sprites
+       (fn [_]
+         (let [user      (make-user ds)
+               nb        (notebooks/create! ds client limits (:users/id user) "T")
+               id        (:notebooks/id nb)
+               forwarded (atom 0)
+               touched   (atom 0)
+               handler   (ig/init-key :hosted-clay.handlers.notebooks/open
+                                      {:datasource ds :sprites-client client :usage-limit-hours 50})
+               req       {:user-id     (:users/id user)
+                          :path-params {:id id :path ""}
+                          :headers     {"accept" "text/html"}}]
+           ;; Put it in the state that actually reaches the proxy: ready, with a
+           ;; sprite url (an empty-pool create starts out "provisioning").
+           (crud/update! ds :notebooks id {:status "ready" :sprite-url "https://nb.sprites.test"})
+           (with-redefs [proxy/forward    (fn [& _] (swap! forwarded inc) {:status 200})
+                         notebooks/touch! (fn [& _] (swap! touched inc) nil)]
+             (testing "under the limit, the request is forwarded and the sprite touched"
+               (crud/update! ds :notebooks id {:usage-month   (usage/current-month)
+                                               :awake-seconds (* 10 3600)})
+               (let [resp (handler req)]
+                 (is (= 200 (:status resp)))
+                 (is (= 1 @forwarded))
+                 (is (= 1 @touched))))
+             (testing "over the limit, refused with 429 — never forwarded, never touched"
+               (crud/update! ds :notebooks id {:usage-month   (usage/current-month)
+                                               :awake-seconds (* 50 3600)})
+               (let [resp (handler req)]
+                 (is (= 429 (:status resp)))
+                 (is (= 1 @forwarded) "not forwarded again")
+                 (is (= 1 @touched) "not touched again"))))))))))

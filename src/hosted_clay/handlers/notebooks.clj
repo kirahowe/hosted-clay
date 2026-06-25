@@ -8,6 +8,7 @@
             [hosted-clay.proxy :as proxy]
             [hosted-clay.sprites.exec :as exec]
             [hosted-clay.ui.pages.workspace :as workspace]
+            [hosted-clay.usage :as usage]
             [hosted-clay.web.response :as response]))
 
 (defn- owned-notebook
@@ -57,19 +58,25 @@
           (response/see-other (str "/notebooks/" (:notebooks/id result))))))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/workspace
-  [_ {:keys [datasource base-url]}]
+  [_ {:keys [datasource base-url usage-limit-hours]}]
   ;; The editing workspace page: editor and live output side by side once
   ;; the notebook is ready; a progress page while its sprite provisions; an
-  ;; error page if that failed. Ownership-gated like the proxy, and a miss
-  ;; is a 404 (not a 403) so notebook ids stay unprobeable.
+  ;; error page if that failed; a paused page once it's spent its monthly
+  ;; budget. Ownership-gated like the proxy, and a miss is a 404 (not a 403)
+  ;; so notebook ids stay unprobeable.
   (fn [req]
     (with-owned-notebook datasource req
       (fn [notebook]
-        (response/html
-         (case (:notebooks/status notebook)
-           "ready"  (workspace/render notebook base-url)
-           "failed" (workspace/render-failed notebook)
-           (workspace/render-provisioning notebook)))))))
+        (if (and (= "ready" (:notebooks/status notebook))
+                 (usage/notebook-over-limit? notebook usage-limit-hours))
+          ;; 429, matching the proxy — the page is informational, but the status
+          ;; should still read as "refused for the month", not a normal 200.
+          (response/html 429 (workspace/render-over-limit notebook usage-limit-hours))
+          (response/html
+           (case (:notebooks/status notebook)
+             "ready"  (workspace/render notebook base-url)
+             "failed" (workspace/render-failed notebook)
+             (workspace/render-provisioning notebook))))))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/status
   [_ {:keys [datasource]}]
@@ -133,21 +140,39 @@
                           {:notebook-id (:notebooks/id notebook) :exit exit :err err})
                 (response/text 502 "Could not restart the notebook environment."))))))))
 
+(defn- wants-html? [req]
+  (some-> (get-in req [:headers "accept"]) str/lower-case (str/includes? "text/html")))
+
+(defn- over-limit-response
+  "Refuse to proxy an over-budget notebook so no new request wakes its sprite: a
+   styled paused page for a document request, plain text for a sub-resource/API
+   call."
+  [req notebook limit-hours]
+  (if (wants-html? req)
+    (response/html 429 (workspace/render-over-limit notebook limit-hours))
+    (response/text 429 "This notebook has reached its monthly active-hours limit and is paused until next month.")))
+
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/open
-  [_ {:keys [datasource sprites-client]}]
+  [_ {:keys [datasource sprites-client usage-limit-hours]}]
   ;; The catch-all proxy: /n/:id/{*path} for every method, WebSockets
   ;; included. Ownership is the only access check — share links go
   ;; through /s/ instead. A miss is a 404, not a 403, so notebook ids
-  ;; aren't probeable.
+  ;; aren't probeable. An over-budget notebook is refused here (before any
+  ;; forward or touch!), so no new request reaches — or wakes — the sprite. An
+  ;; already-open WebSocket isn't re-checked, so it can outlive the limit until
+  ;; it next idles and drops.
   (fn [req]
     (with-owned-notebook datasource req
       (fn [notebook]
-        (notebooks/touch! datasource notebook)
-        (proxy/forward sprites-client
-                       (:notebooks/sprite-url notebook)
-                       (get-in req [:path-params :path])
-                       req
-                       {:strip-framing? true})))))
+        (if (usage/notebook-over-limit? notebook usage-limit-hours)
+          (over-limit-response req notebook usage-limit-hours)
+          (do
+            (notebooks/touch! datasource notebook)
+            (proxy/forward sprites-client
+                           (:notebooks/sprite-url notebook)
+                           (get-in req [:path-params :path])
+                           req
+                           {:strip-framing? true})))))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/open-root [_ _]
   ;; /n/:id -> /n/:id/ so relative asset URLs in the proxied pages

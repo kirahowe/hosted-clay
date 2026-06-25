@@ -24,6 +24,22 @@ hiccup), state in file-backed SQLite on a Fly volume. It owns:
   running count is what drives cost — the scheduler's census
   (`hosted-clay.census`) polls each sprite's live status every few ticks and
   logs total-held vs. awake vs. suspended, WARNing as either limit nears.
+- **Per-user usage budget** — cost is awake-hours, and the Sprites API exposes
+  no usage data (no billing/metrics endpoint, no cumulative counter on the
+  sprite object), so we meter it ourselves (`hosted-clay.usage`). The same
+  census poll that logs the running count accrues each awake notebook's
+  wall-clock awake time into a monthly bucket on the notebook row
+  (`usage_month` / `awake_seconds`; one notebook per user, so per-user),
+  resetting on the UTC month rollover. Past `usage-warn-hours` a warning email
+  goes out once; past `usage-limit-hours` the notebook is **paused** — its
+  handlers (workspace, owner proxy, and share view) refuse to forward, so no new
+  request wakes the sprite — until next month. The cap is soft, not an instant
+  kill: an already-open WebSocket isn't re-checked, so it can keep the sprite
+  awake until it next idles and drops (idle-suspend bounds that to minutes).
+  It's wall-clock awake hours sampled at the census interval, not billed
+  CPU/GB-hours: a soft budget, not an invoice. Both thresholds are config
+  constants (nil disables a step; metering always runs, so the data is there for
+  a future admin view).
 - **Workspace** — the editing page at `/notebooks/:id`
   (`hosted-clay.ui.pages.workspace`) puts the code-server editor and the
   live Clay output side by side, as two same-origin iframes onto the

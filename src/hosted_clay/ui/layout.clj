@@ -76,6 +76,21 @@
             [:form {:method "post" :action "/logout"}
              [:button.button--primary {:type "submit"} "Sign out"]]]]]]))
 
+(defn unavailable
+  "The body for a 503 — a temporary, self-resolving pause (e.g. a notebook
+   that's spent its monthly budget), not a permanent denial like a 403."
+  [message]
+  (page "Temporarily paused"
+        [:div
+         (site-header)
+         [:main
+          [:section.status
+           [:div.status-card
+            [:p.eyebrow "503"]
+            [:h1 "Temporarily paused"]
+            [:p.lead message]
+            [:a.button {:href "/"} "Back to the homepage"]]]]]))
+
 (defn error
   "The body for a 500. Deliberately static — it must render even when the
    thing that failed is the database or a domain component."
