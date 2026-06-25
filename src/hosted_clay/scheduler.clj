@@ -7,6 +7,7 @@
   (:require [clojure.core.async :as async]
             [clojure.tools.logging :as log]
             [integrant.core :as ig]
+            [hosted-clay.census :as census]
             [hosted-clay.lifecycle :as lifecycle]
             [hosted-clay.pool :as pool]))
 
@@ -17,8 +18,8 @@
       (log/error t "scheduled task failed" {:task task-name}))))
 
 (defn- loop!
-  [{:keys [datasource sprites-client email tick-ms sweep-every-ticks
-           pool-target max-sprites warn-after-days delete-after-days base-url]}
+  [{:keys [datasource sprites-client email tick-ms sweep-every-ticks census-every-ticks
+           pool-target max-sprites max-running warn-after-days delete-after-days base-url]}
    running?]
   (loop [tick 0]
     (when @running?
@@ -26,6 +27,11 @@
                     #(pool/replenish! datasource sprites-client
                                       {:target      pool-target
                                        :max-sprites max-sprites}))
+      (when (zero? (mod tick census-every-ticks))
+        (run-quietly! :sprite-census
+                      #(census/log-census! datasource sprites-client
+                                           {:max-sprites max-sprites
+                                            :max-running max-running})))
       (when (zero? (mod tick sweep-every-ticks))
         (run-quietly! :lifecycle-sweep
                       #(lifecycle/sweep! datasource sprites-client email
@@ -37,10 +43,12 @@
 
 (defmethod ig/init-key :hosted-clay/scheduler
   [_ config]
-  (let [config   (merge {:tick-ms 60000 :sweep-every-ticks 60} config)
+  (let [config   (merge {:tick-ms 60000 :sweep-every-ticks 60 :census-every-ticks 5} config)
         running? (atom true)]
-    (log/info "scheduler starting" {:tick-ms (:tick-ms config)
-                                    :pool-target (:pool-target config)})
+    (log/info "scheduler starting" {:tick-ms      (:tick-ms config)
+                                    :pool-target  (:pool-target config)
+                                    :max-sprites  (:max-sprites config)
+                                    :max-running  (:max-running config)})
     {:running? running?
      :thread   (async/thread (loop! config running?))}))
 

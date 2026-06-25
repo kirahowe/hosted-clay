@@ -67,7 +67,15 @@
   (let [deficit (- target (crud/count-rows ds :sprite-pool))
         room    (- max-sprites (sprite-count ds))
         n       (max 0 (min deficit room))]
-    (when (pos? n)
-      (log/info "replenishing pool" {:adding n})
-      (dotimes [_ n]
-        (provision-one! ds client)))))
+    (cond
+      (pos? n)
+      (do (log/info "replenishing pool" {:adding n})
+          (dotimes [_ n]
+            (provision-one! ds client)))
+
+      ;; Want to refill but the sprite ceiling leaves no room: the pool runs
+      ;; dry and the next "New notebook" takes the slow path. Worth a WARN —
+      ;; it means the deployment is at capacity, not idling.
+      (and (pos? deficit) (<= room 0))
+      (log/warn "pool below target but at sprite ceiling; not replenishing"
+                {:deficit deficit :max-sprites max-sprites :held (sprite-count ds)}))))

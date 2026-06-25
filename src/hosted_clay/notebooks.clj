@@ -66,8 +66,10 @@
                          :sprite-url  sprite-url
                          :status      "ready"}
                         sprite-name)
-      (do
-        (when (>= (pool/sprite-count ds) max-sprites)
+      (let [held (pool/sprite-count ds)]
+        (when (>= held max-sprites)
+          (log/warn "sprite budget cap reached; refusing new notebook"
+                    {:held held :max-sprites max-sprites})
           (throw (ex-info "sprite budget cap reached" {:type ::budget-exceeded})))
         ;; The sprite-url is filled by finish-provisioning!; it's never read
         ;; while the row is still 'provisioning' (the proxy and workspace
