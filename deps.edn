@@ -32,6 +32,13 @@
   :prod   {:extra-paths ["env/prod/resources"]
            :main-opts   ["-m" "hosted-clay.main" "prod.edn"]}
 
+  ;; Read-only admin usage CLI/TUI. Puts BOTH env overlays on the classpath
+  ;; so --env dev|prod resolves its overlay via io/resource. charm.clj backs
+  ;; the TUI; the plain (--plain) path needs none of it.
+  :admin  {:extra-paths ["env/dev/resources" "env/prod/resources"]
+           :extra-deps  {de.timokramer/charm.clj {:mvn/version "0.2.71"}}
+           :main-opts   ["-m" "hosted-clay.admin.cli"]}
+
   :lint   {:replace-deps {clj-kondo/clj-kondo {:mvn/version "2026.04.15"}}
            :main-opts    ["-m" "clj-kondo.main" "--lint" "src" "test" "env"]}
 

@@ -30,6 +30,9 @@
   test     {:doc  "Run tests with kaocha"
             :task (dep/sh! "clojure" "-M:test")}
 
+  admin    {:doc  "Run the read-only admin usage CLI/TUI"
+            :task (apply dep/sh! "clojure" "-M:admin" *command-line-args*)}
+
   ci       {:doc     "Lint + fmt-check + tests"
             :depends [lint fmt test]}
 

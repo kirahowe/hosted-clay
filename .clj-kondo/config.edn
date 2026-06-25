@@ -1,0 +1,11 @@
+{;; charm.clj (the admin TUI dep) isn't on the lint classpath — :admin is a
+ ;; runtime-only alias — so clj-kondo can't resolve its namespaces. They're
+ ;; only used in hosted-clay.admin.tui; silence just those rather than
+ ;; suppressing the linter elsewhere.
+ :lint-as {}
+ :linters
+ {:unresolved-namespace
+  {:exclude [charm.components.table
+             charm.message
+             charm.program
+             charm.style.core]}}}

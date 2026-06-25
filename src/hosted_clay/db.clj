@@ -17,11 +17,19 @@
   (str "jdbc:sqlite:" db-path
        "?journal_mode=WAL&busy_timeout=5000&foreign_keys=true"))
 
-(defmethod ig/init-key :hosted-clay.db/datasource [_ {:keys [db-path]}]
-  (log/info "datasource starting" {:db-path db-path})
+(defn datasource
+  "A next.jdbc datasource over the SQLite file at `db-path`, with the WAL +
+   busy_timeout pragmas set on the JDBC URL. Creates the parent directory.
+   The component init-key and the read-only admin tool both build their
+   datasource through here so the URL/pragmas stay in one place."
+  [db-path]
   (when-let [parent (.getParentFile (io/file db-path))]
     (.mkdirs parent))
   (jdbc/get-datasource (jdbc-url db-path)))
+
+(defmethod ig/init-key :hosted-clay.db/datasource [_ {:keys [db-path]}]
+  (log/info "datasource starting" {:db-path db-path})
+  (datasource db-path))
 
 (defmethod ig/halt-key! :hosted-clay.db/datasource [_ _]
   ;; Nothing to close: connections are opened per call and closed by

@@ -1,6 +1,10 @@
 target/
 .cpcache/
 .clj-kondo/.cache/
+# The global gitignore ignores all of .clj-kondo; the lint config (charm.clj
+# namespace exclusions for the admin TUI) must be tracked, so un-ignore it.
+!.clj-kondo/
+!.clj-kondo/config.edn
 .lsp/
 .calva/
 .nrepl-port
