@@ -101,6 +101,26 @@
             (is (= "" (:body resp)))
             (is (= "no-cache" (get-in resp [:headers "cache-control"])))))))))
 
+(deftest share-blocks-the-live-fallback-when-suspended
+  (with-ready-notebook
+    (fn [ds nb]
+      (notebooks/suspend! ds nb)
+      (let [token     (:notebooks/share-token nb)
+            forwarded (atom 0)
+            handler   (share-handler ds)
+            get-doc   #(handler {:request-method :get :path-params {:token token :path ""}})]
+        (with-redefs [proxy/forward (fn [& _] (swap! forwarded inc) {:status 200})]
+          (testing "no snapshot + suspended → 503, the sprite is left asleep"
+            (let [resp (get-doc)]
+              (is (= 503 (:status resp)))
+              (is (zero? @forwarded))))
+          (testing "a snapshot still serves (free, no wake) even while suspended"
+            (snapshot-html! ds nb "<html>SNAP</html>")
+            (let [resp (get-doc)]
+              (is (= 200 (:status resp)))
+              (is (str/includes? (:body resp) "SNAP"))
+              (is (zero? @forwarded)))))))))
+
 (deftest share-refuses-non-get-and-the-editor
   (with-ready-notebook
     (fn [ds nb]

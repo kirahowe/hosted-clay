@@ -362,6 +362,13 @@ dl.meta dd { margin: 0; }
 .badge--ready { color: var(--success); border-color: var(--success); background: var(--success-bg); }
 .badge--provisioning { color: var(--accent); border-color: var(--accent); background: var(--accent-bg); }
 .badge--failed { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
+/* Suspended is a neutral, self-chosen state — the muted default, not a state
+   colour. */
+.badge--suspended { color: var(--fg-muted); border-color: var(--border-strong); background: var(--bg-sunken); }
+
+/* A POST rendered as a single inline button: the wrapping <form> shouldn't add
+   a box or break the surrounding flex row (e.g. .actions, the workspace bar). */
+.inline-form { display: contents; }
 
 /* ---------- spinner & status page ---------- */
 

@@ -68,6 +68,10 @@
         (usage/notebook-over-limit? notebook usage-limit-hours)
         (response/unavailable "This notebook has reached its monthly limit and is paused until next month.")
 
+        ;; Likewise don't wake a sprite the owner has manually suspended.
+        (notebooks/suspended? notebook)
+        (response/unavailable "The owner has suspended this notebook. Check back later.")
+
         :else
         (proxy/forward sprites-client (:notebooks/sprite-url notebook) path req)))))
 

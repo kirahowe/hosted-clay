@@ -23,6 +23,12 @@
        [:a.workspace-home {:href "/dashboard"} "← Dashboard"]
        [:span.workspace-title title]
        [:nav.workspace-actions
+        [:form.inline-form {:method "post" :action (str "/notebooks/" id "/suspend")}
+         [:input {:type "hidden" :name "return" :value (str "/notebooks/" id)}]
+         [:button.workspace-action
+          {:type "submit"
+           :title "Suspend the notebook so its sprite sleeps and stops billing"}
+          "Suspend"]]
         [:button.workspace-action.workspace-restart
          {:type "button"
           :title "Restart the notebook environment if the output stops responding"}
@@ -112,6 +118,27 @@
      [:a.button--primary {:href "/dashboard"} "← Back to dashboard"]
      [:a.button {:href (str "/notebooks/" (:notebooks/id notebook) "/source")}
       "View source"]])))
+
+(defn render-suspended
+  "Shown for a notebook the owner has manually suspended: its sprite is asleep
+   (not billing) and stays that way until they resume. No iframes render, so the
+   page itself never wakes the sprite."
+  [notebook]
+  (let [id (:notebooks/id notebook)]
+    (status-page
+     notebook " — suspended" {}
+     (list
+      [:p.eyebrow "Suspended"]
+      [:h1 "This notebook is suspended"]
+      [:p.lead
+       "You suspended it, so its sprite is asleep and not billing. Resume to "
+       "pick up right where you left off — your work and running session are "
+       "saved."]
+      [:div.actions
+       [:form {:method "post" :action (str "/notebooks/" id "/resume")}
+        [:input {:type "hidden" :name "return" :value (str "/notebooks/" id)}]
+        [:button.button--primary {:type "submit"} "Resume notebook"]]
+       [:a.button {:href "/dashboard"} "← Back to dashboard"]]))))
 
 (defn render-failed [notebook]
   (let [id (:notebooks/id notebook)]

@@ -117,6 +117,29 @@
   (crud/delete! ds :notebooks (:notebooks/id notebook))
   (log/info "notebook deleted" {:notebook-id (:notebooks/id notebook)}))
 
+(defn suspended?
+  "True when the owner has manually suspended this notebook (distinct from the
+   automatic monthly usage pause)."
+  [notebook]
+  (some? (:notebooks/suspended-at notebook)))
+
+(defn suspend!
+  "Manually suspend a notebook: the proxy stops forwarding, so the sprite gets
+   no traffic and idle-suspends until the owner resumes. Suspending is a
+   deliberate keep-this act, so it counts as activity — it resets the 30-day
+   idle-deletion clock (and clears any pending warning), so a parked notebook
+   isn't swept out from under the owner."
+  [ds notebook]
+  (crud/update! ds :notebooks (:notebooks/id notebook)
+                {:suspended-at (crud/now) :last-accessed-at (crud/now) :warned-at nil}))
+
+(defn resume!
+  "Clear a manual suspend and reset the activity clock, so the next request
+   wakes the sprite and the idle-deletion sweep sees it as freshly used."
+  [ds notebook]
+  (crud/update! ds :notebooks (:notebooks/id notebook)
+                {:suspended-at nil :last-accessed-at (crud/now) :warned-at nil}))
+
 (def ^:private touch-granularity (Duration/ofSeconds 60))
 
 (defn touch!

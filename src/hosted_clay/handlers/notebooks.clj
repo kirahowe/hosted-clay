@@ -68,16 +68,24 @@
   (fn [req]
     (with-owned-notebook datasource req
       (fn [notebook]
-        (if (and (= "ready" (:notebooks/status notebook))
-                 (usage/notebook-over-limit? notebook usage-limit-hours))
-          ;; 429, matching the proxy — the page is informational, but the status
-          ;; should still read as "refused for the month", not a normal 200.
-          (response/html 429 (workspace/render-over-limit notebook usage-limit-hours))
-          (response/html
-           (case (:notebooks/status notebook)
-             "ready"  (workspace/render notebook base-url)
-             "failed" (workspace/render-failed notebook)
-             (workspace/render-provisioning notebook))))))))
+        (let [ready? (= "ready" (:notebooks/status notebook))]
+          (cond
+            (and ready? (usage/notebook-over-limit? notebook usage-limit-hours))
+            ;; 429, matching the proxy — the page is informational, but the status
+            ;; should still read as "refused for the month", not a normal 200.
+            (response/html 429 (workspace/render-over-limit notebook usage-limit-hours))
+
+            (and ready? (notebooks/suspended? notebook))
+            ;; The owner's own paused state — 200, with a Resume button. No
+            ;; iframes render, so nothing wakes the sprite.
+            (response/html (workspace/render-suspended notebook))
+
+            :else
+            (response/html
+             (case (:notebooks/status notebook)
+               "ready"  (workspace/render notebook base-url)
+               "failed" (workspace/render-failed notebook)
+               (workspace/render-provisioning notebook)))))))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/status
   [_ {:keys [datasource]}]
@@ -141,6 +149,45 @@
                           {:notebook-id (:notebooks/id notebook) :exit exit :err err})
                 (response/text 502 "Could not restart the notebook environment."))))))))
 
+(defn- safe-return
+  "A same-origin path to redirect back to after a suspend/resume, taken from the
+   form's `return` field. Only a plain '/…' path passes; anything absent,
+   external, protocol-relative ('//'), backslash-tricked ('/\\host', which some
+   browsers normalize to '//host'), or carrying whitespace/control chars falls
+   back to `default`. No open redirect."
+  [req default]
+  (let [r (get-in req [:params "return"])]
+    (if (and (string? r)
+             (str/starts-with? r "/")
+             (not (str/starts-with? r "//"))
+             (not (re-find #"[\s\x00-\x1f\\]" r)))
+      r
+      default)))
+
+(defmethod ig/init-key :hosted-clay.handlers.notebooks/suspend
+  [_ {:keys [datasource]}]
+  ;; Owner-initiated suspend: set the flag and let the sprite idle-suspend (the
+  ;; proxy stops forwarding to it). Redirect back to where the button was. Only a
+  ;; ready notebook can be suspended — there's no sprite to suspend mid-provision,
+  ;; and the suspended page assumes a ready notebook.
+  (fn [req]
+    (with-owned-notebook datasource req
+      (fn [notebook]
+        (when (= "ready" (:notebooks/status notebook))
+          (notebooks/suspend! datasource notebook))
+        (response/see-other (safe-return req "/dashboard"))))))
+
+(defmethod ig/init-key :hosted-clay.handlers.notebooks/resume
+  [_ {:keys [datasource]}]
+  ;; Clear a manual suspend; the next request wakes the sprite. Default back to
+  ;; the workspace — resuming means the owner wants to use it.
+  (fn [req]
+    (with-owned-notebook datasource req
+      (fn [notebook]
+        (notebooks/resume! datasource notebook)
+        (response/see-other
+         (safe-return req (str "/notebooks/" (:notebooks/id notebook))))))))
+
 (defn- wants-html? [req]
   (some-> (get-in req [:headers "accept"]) str/lower-case (str/includes? "text/html")))
 
@@ -152,6 +199,15 @@
   (if (wants-html? req)
     (response/html 429 (workspace/render-over-limit notebook limit-hours))
     (response/text 429 "This notebook has reached its monthly active-hours limit and is paused until next month.")))
+
+(defn- suspended-response
+  "Refuse to proxy a suspended notebook so its sprite stays asleep: the styled
+   suspended page for a document request (so a stale workspace tab shows
+   'resume'), plain text for a sub-resource/API call."
+  [req notebook]
+  (if (wants-html? req)
+    (response/html 503 (workspace/render-suspended notebook))
+    (response/text 503 "This notebook is suspended. Resume it to use it again.")))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/open
   [_ {:keys [datasource sprites-client usage-limit-hours]}]
@@ -165,8 +221,14 @@
   (fn [req]
     (with-owned-notebook datasource req
       (fn [notebook]
-        (if (usage/notebook-over-limit? notebook usage-limit-hours)
+        (cond
+          (usage/notebook-over-limit? notebook usage-limit-hours)
           (over-limit-response req notebook usage-limit-hours)
+
+          (notebooks/suspended? notebook)
+          (suspended-response req notebook)
+
+          :else
           (do
             (notebooks/touch! datasource notebook)
             (proxy/forward sprites-client

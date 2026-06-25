@@ -41,6 +41,18 @@
       (is (not (str/includes? html "usage-track")))
       (is (not (str/includes? html "of 50"))))))
 
+(deftest dashboard-reflects-a-suspended-notebook
+  (let [html (render (assoc (notebook 5) :notebooks/suspended-at "2026-06-24T00:00:00Z") 50)]
+    (testing "the status badge reads 'suspended' and a Resume button is offered"
+      (is (str/includes? html "badge--suspended"))
+      (is (str/includes? html "suspended"))
+      (is (str/includes? html "/resume"))
+      (is (str/includes? html "Resume")))
+    (testing "an active notebook shows Suspend instead"
+      (let [active (render (notebook 5) 50)]
+        (is (str/includes? active "/suspend"))
+        (is (not (str/includes? active "badge--suspended")))))))
+
 (deftest dashboard-without-a-notebook-omits-the-meter
   (let [html (dashboard/render user nil "https://clay.test" 50)]
     (is (str/includes? html "Create your notebook"))

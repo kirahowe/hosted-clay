@@ -213,3 +213,81 @@
              (let [other (make-user ds)
                    resp  (handler {:user-id (:users/id other) :path-params {:id id}})]
                (is (= 404 (:status resp)))))))))))
+
+(deftest suspend!-and-resume!-toggle-the-flag
+  (ts/with-db
+    (fn [ds]
+      (stub-sprites
+       (fn [_]
+         (let [user (make-user ds)
+               nb   (notebooks/create! ds client limits (:users/id user) "T")
+               id   (:notebooks/id nb)]
+           (is (not (notebooks/suspended? nb)))
+           (notebooks/suspend! ds nb)
+           (is (notebooks/suspended? (notebooks/by-id ds id)))
+           (testing "resume clears the flag and bumps last-accessed (off the delete clock)"
+             (let [before (:notebooks/last-accessed-at (notebooks/by-id ds id))]
+               (notebooks/resume! ds (notebooks/by-id ds id))
+               (let [row (notebooks/by-id ds id)]
+                 (is (not (notebooks/suspended? row)))
+                 (is (>= (compare (:notebooks/last-accessed-at row) before) 0)))))))))))
+
+(deftest suspend-resume-handlers-gate-ownership-and-redirect-safely
+  (ts/with-db
+    (fn [ds]
+      (stub-sprites
+       (fn [_]
+         (let [user    (make-user ds)
+               nb      (notebooks/create! ds client limits (:users/id user) "T")
+               id      (:notebooks/id nb)
+               suspend (ig/init-key :hosted-clay.handlers.notebooks/suspend {:datasource ds})
+               resume  (ig/init-key :hosted-clay.handlers.notebooks/resume {:datasource ds})
+               req     (fn [uid return] {:user-id uid :path-params {:id id} :params {"return" return}})
+               nb-now  #(notebooks/by-id ds id)]
+           (testing "suspending a not-yet-ready notebook is a no-op (no sprite to suspend)"
+             (suspend (req (:users/id user) "/dashboard"))
+             (is (not (notebooks/suspended? (nb-now)))))
+           (crud/update! ds :notebooks id {:status "ready"})
+           (testing "owner suspend sets the flag and redirects to the safe return"
+             (let [resp (suspend (req (:users/id user) "/dashboard"))]
+               (is (= 303 (:status resp)))
+               (is (= "/dashboard" (get-in resp [:headers "location"])))
+               (is (notebooks/suspended? (nb-now)))))
+           (testing "tricky returns are rejected — resume falls back to the workspace"
+             (doseq [bad ["//evil.example.com" "/\\evil.example.com" "/ spaced"]]
+               (notebooks/suspend! ds (nb-now))
+               (let [resp (resume (req (:users/id user) bad))]
+                 (is (= (str "/notebooks/" id) (get-in resp [:headers "location"])) (str "rejected: " bad))
+                 (is (not (notebooks/suspended? (nb-now)))))))
+           (testing "a non-owner gets a 404 and can't toggle the flag"
+             (notebooks/suspend! ds (nb-now))
+             (let [other (make-user ds)]
+               (is (= 404 (:status (resume (req (:users/id other) "/dashboard")))))
+               (is (notebooks/suspended? (nb-now)) "still suspended")))))))))
+
+(deftest suspended-notebook-is-refused-by-proxy-and-shown-by-workspace
+  (ts/with-db
+    (fn [ds]
+      (stub-sprites
+       (fn [_]
+         (let [user      (make-user ds)
+               nb        (notebooks/create! ds client limits (:users/id user) "T")
+               id        (:notebooks/id nb)
+               forwarded (atom 0)
+               open      (ig/init-key :hosted-clay.handlers.notebooks/open
+                                      {:datasource ds :sprites-client client :usage-limit-hours 50})
+               workspace (ig/init-key :hosted-clay.handlers.notebooks/workspace
+                                      {:datasource ds :base-url "https://clay.test" :usage-limit-hours 50})]
+           (crud/update! ds :notebooks id {:status "ready" :sprite-url "https://nb.sprites.test"})
+           (notebooks/suspend! ds (notebooks/by-id ds id))
+           (with-redefs [proxy/forward (fn [& _] (swap! forwarded inc) {:status 200})]
+             (testing "the proxy refuses with 503 and never forwards"
+               (let [resp (open {:user-id (:users/id user) :path-params {:id id :path ""}
+                                 :headers {"accept" "text/html"}})]
+                 (is (= 503 (:status resp)))
+                 (is (zero? @forwarded))))
+             (testing "the workspace shows the suspended page (no editor iframes)"
+               (let [resp (workspace {:user-id (:users/id user) :path-params {:id id}})]
+                 (is (= 200 (:status resp)))
+                 (is (str/includes? (:body resp) "suspended"))
+                 (is (not (str/includes? (:body resp) "<iframe"))))))))))))

@@ -12,12 +12,29 @@
   [ts]
   (when ts (subs ts 0 (min 10 (count ts)))))
 
-(defn- status-badge [status]
-  (let [cls (case status
-              "ready"  "badge--ready"
-              "failed" "badge--failed"
-              "badge--provisioning")]
-    [:span.badge {:class cls} status]))
+(defn- suspended? [notebook]
+  (some? (:notebooks/suspended-at notebook)))
+
+(defn- status-badge [notebook]
+  (if (suspended? notebook)
+    [:span.badge.badge--suspended "suspended"]
+    (let [status (:notebooks/status notebook)
+          cls    (case status
+                   "ready"  "badge--ready"
+                   "failed" "badge--failed"
+                   "badge--provisioning")]
+      [:span.badge {:class cls} status])))
+
+(defn- suspend-toggle
+  "Suspend or Resume, whichever applies, as a one-button form back to the
+   dashboard."
+  [id suspended?]
+  [:form.inline-form {:method "post"
+                      :action (str "/notebooks/" id "/" (if suspended? "resume" "suspend"))}
+   [:input {:type "hidden" :name "return" :value "/dashboard"}]
+   (if suspended?
+     [:button.button--primary {:type "submit"} "Resume"]
+     [:button {:type "submit"} "Suspend"])])
 
 (defn- no-notebook []
   [:section.card.card--accent
@@ -41,11 +58,15 @@
           :onsubmit "return confirm('Delete this notebook and its environment? This cannot be undone.')"}
    [:button.button--danger {:type "submit"} "Delete notebook"]])
 
-(defn- ready-body [id share-url]
+(defn- ready-body [id share-url suspended?]
   (list
    [:div.actions
     [:a.button.button--primary {:href (str "/notebooks/" id)} "Open notebook"]
-    [:span.muted "Edit the source and see the rendered output side by side."]]
+    (suspend-toggle id suspended?)]
+   (if suspended?
+     [:p.muted "Suspended — its sprite is asleep and not billing; resume to pick "
+      "up where you left off."]
+     [:p.muted "Edit the source and see the rendered output side by side."])
    [:h3 "Share"]
    [:div.copyable
     [:code share-url]
@@ -82,9 +103,9 @@
       [:h2 (:notebooks/title notebook)]
       [:dl.meta
        [:dt "created"] [:dd (day (:notebooks/created-at notebook))]
-       [:dt "status"]  [:dd (status-badge status)]]]
+       [:dt "status"]  [:dd (status-badge notebook)]]]
      (case status
-       "ready"  (ready-body id share-url)
+       "ready"  (ready-body id share-url (suspended? notebook))
        "failed" (failed-body id)
        (provisioning-body id))]))
 
