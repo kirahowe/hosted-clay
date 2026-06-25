@@ -110,6 +110,34 @@ body.workspace-body { overflow: hidden; }
   background: var(--bg);
 }
 
+/* Idle/paused veil: covers the whole split when the notebook is about to
+   pause (the "still working?" prompt + countdown) or has paused (Resume).
+   Same centered card as the editor-loading overlay, but over both panes and
+   interactive. position:fixed so it doesn't need a positioned ancestor. */
+.workspace-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  text-align: center;
+  background: var(--bg); /* solid fallback for no color-mix support */
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: blur(2px);
+}
+.workspace-veil[hidden] { display: none; }
+.workspace-veil .status-card {
+  max-width: 38ch;
+  display: grid;
+  gap: var(--space-4);
+  justify-items: center;
+}
+.workspace-veil .veil-title {
+  font-weight: 600;
+  font-size: var(--step-1);
+}
+
 .workspace-divider {
   flex: 0 0 6px;
   cursor: col-resize;

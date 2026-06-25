@@ -121,6 +121,15 @@
     {:status 502 :headers {"content-type" "text/plain"}
      :body   "The notebook environment did not answer. It may still be waking up — try again."}))
 
+(def ^:private proxy-http-keepalive-ms
+  ;; http-kit's client pools keep-alive connections for 2 minutes by default.
+  ;; An idle pooled connection to a sprite's URL still counts as activity, so it
+  ;; would keep the sprite awake (and billing) for that whole window after the
+  ;; browser's last request. A short reuse window keeps a page-load burst of
+  ;; asset requests on one connection but lets it close — and the sprite suspend
+  ;; — promptly once traffic stops. (WebSocket relays don't go through here.)
+  15000)
+
 (defn- forward-http [client sprite-url path req strip-framing?]
   (let [url  (target-url sprite-url path (:query-string req))
         {:keys [status headers body error]}
@@ -129,6 +138,7 @@
                                :headers          (forward-request-headers req (sprites/bearer client))
                                :body             (:body req)
                                :as               :stream
+                               :keepalive        proxy-http-keepalive-ms
                                :follow-redirects false})]
     (if error
       (do (log/warn error "sprite request failed" {:url url})
@@ -232,8 +242,20 @@
                         (.sendText ws ^String msg true)
                         (.sendBinary ws (ByteBuffer/wrap ^bytes msg) true))))
       :on-close   (fn [_ch _status]
-                    (when-let [^WebSocket ws @upstream]
-                      (.sendClose ws WebSocket/NORMAL_CLOSURE "")))})))
+                    ;; The browser is gone. Drop the upstream connection to the
+                    ;; sprite *hard* — `abort` closes the TCP socket at once,
+                    ;; where a graceful `sendClose` only half-closes and can
+                    ;; linger until the sprite echoes it. That matters for cost:
+                    ;; Sprites treat "an open TCP connection to its URL" as
+                    ;; activity, so a lingering upstream socket pins the sprite
+                    ;; awake (and billing) indefinitely — which is exactly what
+                    ;; the workspace's idle-suspend is trying to avoid. Run it
+                    ;; off a future so we neither block http-kit's callback
+                    ;; thread on `upstream` resolving nor miss a connect still
+                    ;; in flight.
+                    (future
+                      (when-let [^WebSocket ws @upstream]
+                        (.abort ws))))})))
 
 ;; ---------- entry point ----------
 
