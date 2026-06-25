@@ -50,6 +50,7 @@
    ["/notebooks/:id/delete"  {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/delete}}]
    ["/notebooks/:id/restart" {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/restart}}]
    ["/notebooks/:id/retry"   {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/retry}}]
+   ["/notebooks/:id/source"  {:get  {:handler #ig/ref :hosted-clay.handlers.notebooks/source}}]
    ;; The owner proxy takes every method (and WebSocket upgrades); the
    ;; share proxy is read-only and enforces that itself.
    ["/n/:id"                {:get {:handler #ig/ref :hosted-clay.handlers.notebooks/open-root}}]
@@ -136,6 +137,9 @@
 
  :hosted-clay.handlers.notebooks/open-root {}
 
+ :hosted-clay.handlers.notebooks/source
+ {:datasource #ig/ref :hosted-clay.db/migrator}
+
  :hosted-clay.handlers/share
  {:datasource        #ig/ref :hosted-clay.db/migrator
   :sprites-client    #ig/ref :hosted-clay.sprites/client
@@ -154,6 +158,10 @@
   :max-running       #ig/ref :hosted-clay/max-running
   :usage-limit-hours #ig/ref :hosted-clay/usage-limit-hours
   :usage-warn-hours  #ig/ref :hosted-clay/usage-warn-hours
+  ;; How long a static snapshot may age before the census refreshes it off the
+  ;; awake set (so the share/source views stay near the last save without ever
+  ;; waking a sprite).
+  :snapshot-refresh-minutes 15
   :pool-target       2
   :warn-after-days   23
   :delete-after-days 30}}

@@ -2,13 +2,16 @@
   "Notebook domain tests. The Sprites API edge is stubbed with
    with-redefs — these tests are about our orchestration (pool claim,
    one-per-user, lifecycle bookkeeping), not the wire."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.string :as str]
+            [clojure.test :refer [deftest is testing]]
             [integrant.core :as ig]
             [hosted-clay.db.crud :as crud]
             [hosted-clay.notebooks :as notebooks]
             [hosted-clay.pool :as pool]
             [hosted-clay.proxy :as proxy]
+            [hosted-clay.snapshot :as snapshot]
             [hosted-clay.sprites.client :as sprites]
+            [hosted-clay.sprites.exec :as exec]
             [hosted-clay.sprites.provision :as provision]
             [hosted-clay.test-system :as ts]
             [hosted-clay.usage :as usage]
@@ -184,3 +187,29 @@
                  (is (= 429 (:status resp)))
                  (is (= 1 @forwarded) "not forwarded again")
                  (is (= 1 @touched) "not touched again"))))))))))
+
+(deftest source-handler-serves-stored-source-without-a-usage-check
+  (ts/with-db
+    (fn [ds]
+      (stub-sprites
+       (fn [_]
+         (let [user    (make-user ds)
+               nb      (notebooks/create! ds client limits (:users/id user) "T")
+               id      (:notebooks/id nb)
+               handler (ig/init-key :hosted-clay.handlers.notebooks/source {:datasource ds})
+               req     {:user-id (:users/id user) :path-params {:id id}}]
+           (testing "before any snapshot, a friendly pending message"
+             (let [resp (handler req)]
+               (is (= 200 (:status resp)))
+               (is (str/includes? (:body resp) "captured a snapshot of this notebook yet"))))
+           (testing "after a snapshot, the stored source is shown — even over the limit"
+             (with-redefs [exec/exec! (fn [_ _ _ & _] {:exit 0 :out "(ns notebook)\n42" :err ""})]
+               (snapshot/capture-source! ds client nb))
+             (crud/update! ds :notebooks id {:usage-month   (usage/current-month)
+                                             :awake-seconds (* 99 3600)})
+             (let [resp (handler req)]
+               (is (str/includes? (:body resp) "(ns notebook)"))))
+           (testing "a notebook you don't own is a 404, not a peek at someone's code"
+             (let [other (make-user ds)
+                   resp  (handler {:user-id (:users/id other) :path-params {:id id}})]
+               (is (= 404 (:status resp)))))))))))

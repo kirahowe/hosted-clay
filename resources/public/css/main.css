@@ -597,6 +597,22 @@ hanko-auth {
   max-width: var(--measure-prose);
 }
 
+/* ---------- raw source view ---------- */
+
+pre.source {
+  margin: var(--space-5) 0 0;
+  padding: var(--space-5);
+  background: var(--bg-sunken);
+  border: var(--hairline) solid var(--border);
+  font-size: var(--step--1);
+  line-height: 1.6;
+  max-height: 70vh;
+  overflow: auto;
+  white-space: pre;
+  -moz-tab-size: 2;
+  tab-size: 2;
+}
+
 /* ---------- responsive ---------- */
 
 @media (max-width: 640px) {

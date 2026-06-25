@@ -51,6 +51,9 @@
     [:code share-url]
     [:button.copy {:type "button" :data-copy share-url} "Copy"]]
    [:p.muted "Anyone with this link can view the rendered notebook (read-only)."]
+   [:p.subtle "Need just the code? "
+    [:a {:href (str "/notebooks/" id "/source")} "View the raw source"]
+    " — it stays available even if the notebook is paused for the month."]
    [:hr]
    (delete-form id)
    [:p.subtle

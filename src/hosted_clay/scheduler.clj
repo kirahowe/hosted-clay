@@ -10,6 +10,7 @@
             [hosted-clay.census :as census]
             [hosted-clay.lifecycle :as lifecycle]
             [hosted-clay.pool :as pool]
+            [hosted-clay.snapshot :as snapshot]
             [hosted-clay.usage :as usage]))
 
 (defn- run-quietly! [task-name f]
@@ -21,7 +22,7 @@
 (defn- loop!
   [{:keys [datasource sprites-client email tick-ms sweep-every-ticks census-every-ticks
            pool-target max-sprites max-running usage-limit-hours usage-warn-hours
-           warn-after-days delete-after-days base-url]}
+           snapshot-refresh-minutes warn-after-days delete-after-days base-url]}
    running?]
   ;; Each awake sample during a census run is worth one census interval of
   ;; awake time (nominal — close enough for a soft monthly budget).
@@ -43,7 +44,12 @@
                                            {:interval-seconds census-interval-seconds
                                             :warn-hours       usage-warn-hours
                                             :limit-hours      usage-limit-hours
-                                            :base-url         base-url})))))
+                                            :base-url         base-url})
+                            ;; Refresh static snapshots off the same awake set,
+                            ;; so the share/source views never wake a sprite.
+                            (snapshot/refresh-awake! datasource sprites-client
+                                                     (:awake-notebooks c)
+                                                     snapshot-refresh-minutes)))))
         (when (zero? (mod tick sweep-every-ticks))
           (run-quietly! :lifecycle-sweep
                         #(lifecycle/sweep! datasource sprites-client email

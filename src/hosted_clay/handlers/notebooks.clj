@@ -6,6 +6,7 @@
             [integrant.core :as ig]
             [hosted-clay.notebooks :as notebooks]
             [hosted-clay.proxy :as proxy]
+            [hosted-clay.snapshot :as snapshot]
             [hosted-clay.sprites.exec :as exec]
             [hosted-clay.ui.pages.workspace :as workspace]
             [hosted-clay.usage :as usage]
@@ -173,6 +174,18 @@
                            (get-in req [:path-params :path])
                            req
                            {:strip-framing? true})))))))
+
+(defmethod ig/init-key :hosted-clay.handlers.notebooks/source
+  [_ {:keys [datasource]}]
+  ;; The owner's raw .clj, served straight from the last snapshot. Ownership is
+  ;; the only gate — no usage check — so the code is always retrievable, even
+  ;; while the notebook is paused for the month. Touches no sprite.
+  (fn [req]
+    (with-owned-notebook datasource req
+      (fn [notebook]
+        (let [snap (snapshot/for-notebook datasource (:notebooks/id notebook))]
+          (response/html
+           (workspace/render-source notebook (:notebook-snapshots/source snap))))))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/open-root [_ _]
   ;; /n/:id -> /n/:id/ so relative asset URLs in the proxied pages

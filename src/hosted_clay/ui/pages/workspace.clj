@@ -47,6 +47,31 @@
      {:head       [:link {:rel "stylesheet" :href "/static/css/workspace.css"}]
       :body-class "workspace-body"})))
 
+(defn render-source
+  "The notebook's raw .clj, served from the last snapshot so the owner can copy
+   their code anywhere — even while the notebook is paused for the month.
+   `source` is nil until the first snapshot has been captured."
+  [notebook source]
+  (let [title (:notebooks/title notebook)]
+    (layout/page
+     (str title " — source")
+     [:div
+      (layout/site-header [:a {:href "/dashboard"} "← Dashboard"])
+      [:main
+       [:p.eyebrow "Source"]
+       [:h1 title]
+       (if source
+         (list
+          [:p.lead
+           "Your most recently saved notebook source, served from a snapshot — "
+           "so you can copy it anywhere, even while the notebook is paused."]
+          [:div.actions
+           [:button.button.copy {:type "button" :data-copy source} "Copy source"]]
+          [:pre.source [:code source]])
+         [:p.lead
+          "We haven't captured a snapshot of this notebook yet — snapshots are "
+          "taken while it's awake, so check back in a few minutes."])]])))
+
 (defn- status-page
   "The shared chrome for the non-ready states: standard layout, a back
    link, and a centred status card holding `card` (a seq of children).
@@ -84,7 +109,9 @@
      "to keep costs in check. Your work is saved — it'll be available again at "
      "the start of next month."]
     [:div.actions
-     [:a.button--primary {:href "/dashboard"} "← Back to dashboard"]])))
+     [:a.button--primary {:href "/dashboard"} "← Back to dashboard"]
+     [:a.button {:href (str "/notebooks/" (:notebooks/id notebook) "/source")}
+      "View source"]])))
 
 (defn render-failed [notebook]
   (let [id (:notebooks/id notebook)]
