@@ -16,8 +16,14 @@ hiccup), state in file-backed SQLite on a Fly volume. It owns:
   inline as the slow path), delete, idle warning at 23 days, deletion at
   30 (`hosted-clay.lifecycle`, run by the scheduler).
 - **Warm pool** — the scheduler keeps `pool-target` provisioned sprites
-  ready so "New notebook" is instant. A budget cap (`max-sprites`)
-  bounds total spend.
+  ready so "New notebook" is instant. Two limits bound spend: `max-sprites`
+  is the registration ceiling (the most sprites — notebooks + pool — the
+  deployment will ever *hold*; gates sign-ups and bounds storage), and
+  `max-running` is a concurrency soft-cap on how many are *awake* at once.
+  Sprites bill compute only while awake and suspend after ~30s idle, so the
+  running count is what drives cost — the scheduler's census
+  (`hosted-clay.census`) polls each sprite's live status every few ticks and
+  logs total-held vs. awake vs. suspended, WARNing as either limit nears.
 - **Workspace** — the editing page at `/notebooks/:id`
   (`hosted-clay.ui.pages.workspace`) puts the code-server editor and the
   live Clay output side by side, as two same-origin iframes onto the
@@ -30,7 +36,14 @@ hiccup), state in file-backed SQLite on a Fly volume. It owns:
   `code-server` services over the exec socket for when Clay dies and
   `/n/:id/` starts 502ing (code-server too, so Calva's one-shot auto-connect
   re-attaches to the fresh nREPL); the page then polls `/n/:id/counter` for
-  liveness and reloads both panes.
+  liveness and reloads both panes. The page also **idle-suspends** the sprite
+  (`workspace.js`): the editor/live-reload WebSockets would otherwise keep it
+  awake (and billing) for as long as the tab is open, so it tears the iframes
+  down — closing those sockets so the sprite suspends after ~30s — when the tab
+  is backgrounded for a couple of minutes, or when it's visible but untouched
+  (after a prompt + grace countdown, so a thinking/reading user is never cut
+  off). Restoring the iframes wakes the sprite (sub-second resume, JVM/REPL
+  state preserved) and reloads the panes.
 - **Proxy** — all browser traffic to a notebook flows through the
   control plane (`hosted-clay.proxy`): sprite URLs stay on Sprites' own
   auth and the proxy attaches the org API token. Owner traffic
@@ -118,6 +131,21 @@ this implementation assumes:
    Resend account; the prod default (`onboarding@resend.dev`) is Resend's
    sandbox sender and only delivers to verified recipients. Without the
    key the app runs fine but logs every "email" instead of sending it.
+6. **Idle-suspend round-trip** — `workspace.js` pauses a notebook (drops the
+   iframes) and resumes it (restores them). Crucially, Sprites count "an open
+   TCP connection to its URL" as activity, so a sprite suspends only once
+   *nothing* holds a connection to it — not just the browser. The browser
+   dropping its sockets isn't enough on its own: the proxy must also drop its
+   upstream connections to the sprite, which it now does (`proxy.clj` aborts the
+   relay WebSocket on browser close instead of a graceful half-close that
+   lingers, and caps the HTTP client's keep-alive reuse window). Verify against
+   a real sprite that after a pause the **Sprites dashboard shows it suspend**
+   within ~30–60s (proving we stopped billing), and that resume brings the
+   editor + REPL + Clay back fast with the open file and REPL state intact. The
+   workspace logs every idle transition to the devtools console (`[notebook] …`)
+   — watch those to confirm pause/resume fire when expected. Also read the
+   sprite's resident memory in the dashboard while awake: that figure sets the
+   real per-hour cost (see `census`).
 
 ## Deliberate deviations from the original spec
 
