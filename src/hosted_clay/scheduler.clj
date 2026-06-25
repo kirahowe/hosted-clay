@@ -9,7 +9,8 @@
             [integrant.core :as ig]
             [hosted-clay.census :as census]
             [hosted-clay.lifecycle :as lifecycle]
-            [hosted-clay.pool :as pool]))
+            [hosted-clay.pool :as pool]
+            [hosted-clay.usage :as usage]))
 
 (defn- run-quietly! [task-name f]
   (try
@@ -19,27 +20,38 @@
 
 (defn- loop!
   [{:keys [datasource sprites-client email tick-ms sweep-every-ticks census-every-ticks
-           pool-target max-sprites max-running warn-after-days delete-after-days base-url]}
+           pool-target max-sprites max-running usage-limit-hours usage-warn-hours
+           warn-after-days delete-after-days base-url]}
    running?]
-  (loop [tick 0]
-    (when @running?
-      (run-quietly! :replenish-pool
-                    #(pool/replenish! datasource sprites-client
-                                      {:target      pool-target
-                                       :max-sprites max-sprites}))
-      (when (zero? (mod tick census-every-ticks))
-        (run-quietly! :sprite-census
-                      #(census/log-census! datasource sprites-client
-                                           {:max-sprites max-sprites
-                                            :max-running max-running})))
-      (when (zero? (mod tick sweep-every-ticks))
-        (run-quietly! :lifecycle-sweep
-                      #(lifecycle/sweep! datasource sprites-client email
-                                         {:warn-after-days   warn-after-days
-                                          :delete-after-days delete-after-days
-                                          :base-url          base-url})))
-      (Thread/sleep ^long tick-ms)
-      (recur (inc tick)))))
+  ;; Each awake sample during a census run is worth one census interval of
+  ;; awake time (nominal — close enough for a soft monthly budget).
+  (let [census-interval-seconds (long (/ (* tick-ms census-every-ticks) 1000))]
+    (loop [tick 0]
+      (when @running?
+        (run-quietly! :replenish-pool
+                      #(pool/replenish! datasource sprites-client
+                                        {:target      pool-target
+                                         :max-sprites max-sprites}))
+        (when (zero? (mod tick census-every-ticks))
+          (run-quietly! :sprite-census
+                        (fn []
+                          ;; One status poll feeds both the cost log and the
+                          ;; per-user usage meter.
+                          (let [c (census/gather datasource sprites-client)]
+                            (census/log! c {:max-sprites max-sprites :max-running max-running})
+                            (usage/record! datasource email (:awake-notebooks c)
+                                           {:interval-seconds census-interval-seconds
+                                            :warn-hours       usage-warn-hours
+                                            :limit-hours      usage-limit-hours
+                                            :base-url         base-url})))))
+        (when (zero? (mod tick sweep-every-ticks))
+          (run-quietly! :lifecycle-sweep
+                        #(lifecycle/sweep! datasource sprites-client email
+                                           {:warn-after-days   warn-after-days
+                                            :delete-after-days delete-after-days
+                                            :base-url          base-url})))
+        (Thread/sleep ^long tick-ms)
+        (recur (inc tick))))))
 
 (defmethod ig/init-key :hosted-clay/scheduler
   [_ config]

@@ -21,6 +21,16 @@
  ;; early, alongside the Sprites dashboard/CLI.
  :hosted-clay/max-running 10
 
+ ;; Per-user monthly active-hours budget. Sprites bill only while awake and the
+ ;; Sprites API exposes no usage data, so the scheduler's census meters awake
+ ;; wall-clock time per notebook (one notebook per user, so per-user). A
+ ;; notebook past usage-limit-hours is paused — blocked in its handlers, so no
+ ;; new request wakes its sprite — until the UTC month rolls over; a warning
+ ;; email goes out at usage-warn-hours. Set either to nil to disable that step
+ ;; (metering still runs, so the data is there for an admin view).
+ :hosted-clay/usage-limit-hours 50
+ :hosted-clay/usage-warn-hours  40
+
  ;; ---------- http ----------
 
  :hosted-clay.concerns.reitit/router
@@ -99,8 +109,9 @@
   :max-sprites    #ig/ref :hosted-clay/max-sprites}
 
  :hosted-clay.handlers.notebooks/workspace
- {:datasource #ig/ref :hosted-clay.db/migrator
-  :base-url   #ig/ref :hosted-clay/base-url}
+ {:datasource        #ig/ref :hosted-clay.db/migrator
+  :base-url          #ig/ref :hosted-clay/base-url
+  :usage-limit-hours #ig/ref :hosted-clay/usage-limit-hours}
 
  :hosted-clay.handlers.notebooks/status
  {:datasource #ig/ref :hosted-clay.db/migrator}
@@ -118,14 +129,16 @@
   :sprites-client #ig/ref :hosted-clay.sprites/client}
 
  :hosted-clay.handlers.notebooks/open
- {:datasource     #ig/ref :hosted-clay.db/migrator
-  :sprites-client #ig/ref :hosted-clay.sprites/client}
+ {:datasource        #ig/ref :hosted-clay.db/migrator
+  :sprites-client    #ig/ref :hosted-clay.sprites/client
+  :usage-limit-hours #ig/ref :hosted-clay/usage-limit-hours}
 
  :hosted-clay.handlers.notebooks/open-root {}
 
  :hosted-clay.handlers/share
- {:datasource     #ig/ref :hosted-clay.db/migrator
-  :sprites-client #ig/ref :hosted-clay.sprites/client}
+ {:datasource        #ig/ref :hosted-clay.db/migrator
+  :sprites-client    #ig/ref :hosted-clay.sprites/client
+  :usage-limit-hours #ig/ref :hosted-clay/usage-limit-hours}
 
  :hosted-clay.handlers/share-root {}
 
@@ -138,6 +151,8 @@
   :base-url          #ig/ref :hosted-clay/base-url
   :max-sprites       #ig/ref :hosted-clay/max-sprites
   :max-running       #ig/ref :hosted-clay/max-running
+  :usage-limit-hours #ig/ref :hosted-clay/usage-limit-hours
+  :usage-warn-hours  #ig/ref :hosted-clay/usage-warn-hours
   :pool-target       2
   :warn-after-days   23
   :delete-after-days 30}}

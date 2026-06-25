@@ -15,6 +15,8 @@
 (derive :hosted-clay/base-url :hosted-clay/const)
 (derive :hosted-clay/max-sprites :hosted-clay/const)
 (derive :hosted-clay/max-running :hosted-clay/const)
+(derive :hosted-clay/usage-limit-hours :hosted-clay/const)
+(derive :hosted-clay/usage-warn-hours :hosted-clay/const)
 
 ;; ---------- EDN reader literals ----------
 
