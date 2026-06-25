@@ -204,7 +204,7 @@
                (is (str/includes? (:body resp) "captured a snapshot of this notebook yet"))))
            (testing "after a snapshot, the stored source is shown — even over the limit"
              (with-redefs [exec/exec! (fn [_ _ _ & _] {:exit 0 :out "(ns notebook)\n42" :err ""})]
-               (snapshot/capture-source! ds client nb))
+               (snapshot/capture! ds client nb))
              (crud/update! ds :notebooks id {:usage-month   (usage/current-month)
                                              :awake-seconds (* 99 3600)})
              (let [resp (handler req)]

@@ -71,6 +71,20 @@ hiccup), state in file-backed SQLite on a Fly volume. It owns:
   A dead/​waking sprite is answered with a styled, self-refreshing page
   for document requests (`hosted-clay.ui.pages.waking`) and a plain line
   otherwise.
+- **Static snapshots** (`hosted-clay.snapshot`) — the control plane runs
+  24/7, so the read-only share view and the owner's source view are served
+  from it, not the sprite. The census `cat`s two files Clay already maintains
+  on every save — the `.clj` source and the *self-contained* rendered
+  `docs/notebook.html` (Clay injects the live-reload socket only at serve-time,
+  not into the file, so it's portable as-is) — into a `notebook_snapshots`
+  side table (a side table, so the frequent `SELECT *` over `notebooks` skips
+  the blobs). It only reads notebooks whose sprite is *already* awake, so a
+  snapshot never causes a wake, and it's throttled by `snapshot-refresh-minutes`.
+  The share view (`/s/:token/`) then serves the stored HTML with zero sprite
+  contact — so it costs nothing, never wakes the sprite, and works even while
+  the notebook is paused; it falls back to the live proxy only until the first
+  snapshot lands. The owner's `/notebooks/:id/source` serves the stored `.clj`,
+  ownership-gated with no usage check, so the code is always retrievable.
 - **Email** — only the 23-day deletion warning, sent via Resend's HTTP
   API (`hosted-clay.email`). With no `RESEND_API_KEY` the component logs
   the message instead of sending and warns loudly at startup, so the flow
