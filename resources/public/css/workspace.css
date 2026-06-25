@@ -48,22 +48,38 @@ body.workspace-body { overflow: hidden; }
   gap: var(--space-5);
 }
 
-/* Bar actions are text buttons, not the bordered default — they sit in a
-   dense toolbar, not a content flow. */
+/* Bar actions read as actual buttons — bordered, with a fill on hover — just
+   sized down (smaller type, tighter padding) for the dense toolbar. */
 .workspace-action {
   font: inherit;
   font-size: var(--step--1);
-  color: var(--fg-muted);
-  background: none;
-  border: 0;
+  color: var(--fg);
+  background: transparent;
+  border: var(--hairline) solid var(--border-strong);
   border-radius: var(--radius);
-  padding: 0;
+  padding: var(--space-1) var(--space-3);
   cursor: pointer;
-  transition: color var(--transition-fast);
+  white-space: nowrap;
+  transition: background-color var(--transition-fast),
+              color var(--transition-fast),
+              border-color var(--transition-fast);
 }
-.workspace-action:hover { background: none; color: var(--accent); text-decoration: none; }
-.workspace-action:disabled { color: var(--fg-subtle); cursor: default; text-decoration: none; }
-.workspace-action[data-copied="true"] { color: var(--success); text-decoration: none; }
+.workspace-action:hover {
+  background: var(--fg);
+  color: var(--bg);
+  border-color: var(--fg);
+  text-decoration: none;
+}
+.workspace-action:disabled {
+  color: var(--fg-subtle);
+  border-color: var(--border);
+  background: transparent;
+  cursor: default;
+}
+.workspace-action[data-copied="true"] {
+  color: var(--success);
+  border-color: var(--success);
+}
 
 /* The split. The editor pane's width lives in a custom property so the
    divider drag (workspace.js) can update it; the output pane takes the
