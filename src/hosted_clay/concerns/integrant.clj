@@ -14,6 +14,7 @@
 ;; through the init-method above and can be `#ig/ref`'d by components.
 (derive :hosted-clay/base-url :hosted-clay/const)
 (derive :hosted-clay/max-sprites :hosted-clay/const)
+(derive :hosted-clay/max-running :hosted-clay/const)
 
 ;; ---------- EDN reader literals ----------
 

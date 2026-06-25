@@ -7,10 +7,19 @@
  ;; emails, and the CSRF origin check. Overridden per environment.
  :hosted-clay/base-url "http://localhost:3000"
 
- ;; Budget cap: the most sprites (notebooks + warm pool) this deployment
- ;; will ever hold. The blunt instrument that keeps the prototype's
- ;; Fly bill bounded.
- :hosted-clay/max-sprites 60
+ ;; Registration ceiling: the most sprites (notebooks + warm pool) this
+ ;; deployment will ever *hold*. Sprites suspend after ~30s idle and bill
+ ;; compute only while awake (storage-only when suspended), so holding more
+ ;; than are ever awake at once is cheap — this cap bounds total storage and
+ ;; the absolute worst case, and gates sign-ups, not concurrency.
+ :hosted-clay/max-sprites 40
+
+ ;; Concurrency soft-cap: how many sprites we expect to be *awake* (billing
+ ;; CPU/RAM) at once. Not hard-enforced — the platform wakes a sprite on
+ ;; demand and suspends it on idle — but the census (in the scheduler) logs
+ ;; the live running count and WARNs at this threshold so a runaway is visible
+ ;; early, alongside the Sprites dashboard/CLI.
+ :hosted-clay/max-running 10
 
  ;; ---------- http ----------
 
@@ -128,6 +137,7 @@
   :email             #ig/ref :hosted-clay/email
   :base-url          #ig/ref :hosted-clay/base-url
   :max-sprites       #ig/ref :hosted-clay/max-sprites
+  :max-running       #ig/ref :hosted-clay/max-running
   :pool-target       2
   :warn-after-days   23
   :delete-after-days 30}}
