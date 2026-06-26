@@ -1,9 +1,9 @@
-/* Design tokens. A Swiss-technical system with one accent: a neutral
-   grotesk for prose, monospace for code/identifiers, square corners,
-   hairline rules, generous whitespace. The monochrome base carries
-   structure; a single accent (clay/terracotta — a nod to the project
-   name) carries brand and emphasis. State colours (danger, success)
-   remain independent.
+/* Design tokens. A Swiss-technical system: a neutral grotesk for prose,
+   monospace for code/identifiers, square corners, hairline rules, generous
+   whitespace. The monochrome base carries structure; two accents carry brand —
+   Clojure's blue (--accent, for text and interactive elements) and green
+   (--accent-2, for decorative fills) — a nod to the language the notebooks run.
+   State colours (danger, success) remain independent.
 
    Theming follows the OS: light is the default, and the dark palette
    applies whenever prefers-color-scheme asks for it. There is no manual
@@ -22,14 +22,18 @@
   --border: #e3e3e0;
   --border-strong: #16161a;
 
-  /* Accent — the one brand colour. Used sparingly: the wordmark glyph,
-     primary actions, hero emphasis, focus rings. */
-  --accent: #b15d3c;
-  --accent-hover: #95492c;
+  /* Accent — Clojure's blue and green. Blue (--accent) is the text/interactive
+     accent: links, primary actions, eyebrow labels, focus rings — dark enough
+     to carry text. Green (--accent-2) is the decorative-fill accent, used where
+     it's a block of colour, not text: the wordmark glyph, the eyebrow rule, the
+     usage bar, the spinner. Red stays independent for delete. */
+  --accent: #4670cc;
+  --accent-hover: #3f66c9;
   --accent-fg: #ffffff;
-  --accent-bg: #f7ede6;
-  --accent-border: #b15d3c;
-  --accent-soft: #efe2d8;
+  --accent-bg: #eaeefb;
+  --accent-border: #4670cc;
+  --accent-soft: #dce3f7;
+  --accent-2: #63b132;
 
   /* State — independent of the accent. */
   --danger: #b3261e;
@@ -99,12 +103,13 @@
     --border: #2a2a30;
     --border-strong: #ededf0;
 
-    --accent: #e89679;
-    --accent-hover: #f3a98c;
-    --accent-fg: #1a0f0a;
-    --accent-bg: #2a1814;
-    --accent-border: #e89679;
-    --accent-soft: #1f1714;
+    --accent: #90b4fe;
+    --accent-hover: #abc8ff;
+    --accent-fg: #0a1224;
+    --accent-bg: #16213e;
+    --accent-border: #90b4fe;
+    --accent-soft: #161e32;
+    --accent-2: #91dc47;
 
     --danger: #ff6b61;
     --danger-bg: #2a1411;

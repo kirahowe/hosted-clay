@@ -79,26 +79,24 @@
           "taken while it's awake, so check back in a few minutes."])]])))
 
 (defn- status-page
-  "The shared chrome for the non-ready states: standard layout, a back
-   link, and a centred status card holding `card` (a seq of children).
-   `main-attrs` lets the provisioning page hang its poll hook on <main>."
-  [notebook suffix main-attrs card]
-  (layout/page
-   (str (:notebooks/title notebook) suffix)
-   [:div
-    (layout/site-header [:a {:href "/dashboard"} "← Dashboard"])
-    [:main main-attrs
-     [:section.status
-      [:div.status-card card]]]]))
+  "Every non-ready notebook state renders through the shared `layout/status-page`
+   template, with a back-to-dashboard link in the header and the notebook title
+   as the document title — so the provisioning / suspended / over-limit / failed
+   screens stay visually identical to each other and to the 4xx/5xx pages."
+  [notebook suffix opts]
+  (layout/status-page
+   (merge {:title (str (:notebooks/title notebook) suffix)
+           :nav   [[:a {:href "/dashboard"} "← Dashboard"]]}
+          opts)))
 
 (defn render-provisioning [notebook]
   (status-page
-   notebook " — setting up" {:data-provision (:notebooks/id notebook)}
-   (list
-    [:div.spinner {:role "status" :aria-label "Setting up"}]
-    [:p.eyebrow "Setting up"]
-    [:h1 "Spinning up your notebook"]
-    [:p.lead "This can sometimes take a couple of minutes."])))
+   notebook " — setting up"
+   {:main-attrs {:data-provision (:notebooks/id notebook)}
+    :spinner?   true
+    :eyebrow    "Setting up"
+    :heading    "Spinning up your notebook"
+    :lead       "This can sometimes take a couple of minutes."}))
 
 (defn render-over-limit
   "Shown when a notebook has spent its monthly active-hours budget: the sprite
@@ -106,18 +104,15 @@
    is untouched."
   [notebook limit-hours]
   (status-page
-   notebook " — paused for the month" {}
-   (list
-    [:p.eyebrow "Monthly limit reached"]
-    [:h1 "This notebook is paused for the month"]
-    [:p.lead
-     "It's used its " limit-hours " active hours for this month, so it's paused "
-     "to keep costs in check. Your work is saved — it'll be available again at "
-     "the start of next month."]
-    [:div.actions
-     [:a.button--primary {:href "/dashboard"} "← Back to dashboard"]
-     [:a.button {:href (str "/notebooks/" (:notebooks/id notebook) "/source")}
-      "View source"]])))
+   notebook " — paused for the month"
+   {:eyebrow "Monthly limit reached"
+    :heading "This notebook is paused for the month"
+    :lead    (str "It's used its " limit-hours " active hours for this month, so "
+                  "it's paused to keep costs in check. Your work is saved — it'll "
+                  "be available again at the start of next month.")
+    :actions [[:a.button.button--primary {:href "/dashboard"} "← Back to dashboard"]
+              [:a.button {:href (str "/notebooks/" (:notebooks/id notebook) "/source")}
+               "View source"]]}))
 
 (defn render-suspended
   "Shown for a notebook the owner has manually suspended: its sprite is asleep
@@ -126,34 +121,28 @@
   [notebook]
   (let [id (:notebooks/id notebook)]
     (status-page
-     notebook " — suspended" {}
-     (list
-      [:p.eyebrow "Suspended"]
-      [:h1 "This notebook is suspended"]
-      [:p.lead
-       "You suspended it, so its sprite is asleep and not billing. Resume to "
-       "pick up right where you left off — your work and running session are "
-       "saved."]
-      [:div.actions
-       [:form.inline-form {:method "post" :action (str "/notebooks/" id "/resume")}
-        [:input {:type "hidden" :name "return" :value (str "/notebooks/" id)}]
-        [:button.button--primary {:type "submit"} "Resume notebook"]]
-       [:a.button {:href "/dashboard"} "← Back to dashboard"]]))))
+     notebook " — suspended"
+     {:eyebrow "Suspended"
+      :heading "This notebook is suspended"
+      :lead    (str "You suspended it, so its sprite is asleep and not billing. "
+                    "Resume to pick up right where you left off — your work and "
+                    "running session are saved.")
+      :actions [[:form.inline-form {:method "post" :action (str "/notebooks/" id "/resume")}
+                 [:input {:type "hidden" :name "return" :value (str "/notebooks/" id)}]
+                 [:button.button--primary {:type "submit"} "Resume notebook"]]
+                [:a.button {:href "/dashboard"} "← Back to dashboard"]]})))
 
 (defn render-failed [notebook]
   (let [id (:notebooks/id notebook)]
     (status-page
-     notebook " — setup failed" {}
-     (list
-      [:p.eyebrow "Setup failed"]
-      [:h1 "Setup didn't finish"]
-      [:p.lead
-       "Something went wrong while building your environment. You can try "
-       "again, or delete it and start over."]
-      [:div.actions
-       [:form {:method "post" :action (str "/notebooks/" id "/retry")
-               :data-submit-label "Retrying…"}
-        [:button.button--primary {:type "submit"} "Try again"]]
-       [:form {:method "post" :action (str "/notebooks/" id "/delete")
-               :onsubmit "return confirm('Delete this notebook? This cannot be undone.')"}
-        [:button.button--danger {:type "submit"} "Delete"]]]))))
+     notebook " — setup failed"
+     {:eyebrow "Setup failed"
+      :heading "Setup didn't finish"
+      :lead    (str "Something went wrong while building your environment. You can "
+                    "try again, or delete it and start over.")
+      :actions [[:form.inline-form {:method "post" :action (str "/notebooks/" id "/retry")
+                                    :data-submit-label "Retrying…"}
+                 [:button.button--primary {:type "submit"} "Try again"]]
+                [:form.inline-form {:method "post" :action (str "/notebooks/" id "/delete")
+                                    :onsubmit "return confirm('Delete this notebook? This cannot be undone.')"}
+                 [:button.button--danger {:type "submit"} "Delete"]]]})))

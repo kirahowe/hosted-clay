@@ -46,62 +46,78 @@
    [:span "© Clay Notebooks · MIT"]
    (-> [:nav] (into links))])
 
+(defn status-page
+  "The single template behind every full-page status screen — the 4xx/5xx
+   error pages, a waking or provisioning notebook, a suspended / over-limit
+   notebook, a failed setup. Routing them all through here keeps every
+   \"something is happening\" page visually identical: one centred status card
+   with an optional spinner, an eyebrow, a heading, a lead, and an action row.
+
+   opts:
+     :title       <title> text — defaults to :heading
+     :header?     render the site header (default true); false for pages shown
+                  embedded in an iframe (e.g. a waking notebook)
+     :nav         seq of header nav hiccup (a back link, a sign-out form, …)
+     :spinner?    show the loading spinner above the eyebrow
+     :eyebrow     short status label (\"404\", \"Setup failed\", \"Suspended\")
+     :heading     the h1 (required)
+     :lead        the explanatory paragraph — string or hiccup
+     :actions     seq of action hiccup (buttons / links / inline-forms)
+     :head        extra <head> hiccup (e.g. a meta-refresh)
+     :main-attrs  attrs hung on <main> (e.g. a provisioning poll hook)
+     :body-class  passed through to `page`"
+  [{:keys [title header? nav spinner? eyebrow heading lead actions head main-attrs body-class]
+    :or   {header? true}}]
+  (page
+   (or title heading)
+   [:div
+    (when header? (apply site-header nav))
+    [:main (or main-attrs {})
+     [:section.status
+      (cond-> [:div.status-card]
+        spinner?      (conj [:div.spinner {:role "status" :aria-label (or eyebrow "Loading")}])
+        eyebrow       (conj [:p.eyebrow eyebrow])
+        :always       (conj [:h1 heading])
+        lead          (conj [:p.lead lead])
+        (seq actions) (conj (into [:div.actions] actions)))]]]
+   {:head head :body-class body-class}))
+
 (defn not-found
   "The body for a 404, wrapped in the standard layout."
   [message]
-  (page "Not found"
-        [:div
-         (site-header)
-         [:main
-          [:section.status
-           [:div.status-card
-            [:p.eyebrow "404"]
-            [:h1 "Not found"]
-            [:p.lead message]
-            [:a.button {:href "/"} "Back to the homepage"]]]]]))
+  (status-page
+   {:eyebrow "404"
+    :heading "Not found"
+    :lead    message
+    :actions [[:a.button {:href "/"} "Back to the homepage"]]}))
 
 (defn forbidden
   "The body for a 403. Offers a sign-out so a signed-in visitor who hit
    a wall isn't stuck — `/logout` is public, so it always works."
   [message]
-  (page "Not allowed"
-        [:div
-         (site-header)
-         [:main
-          [:section.status
-           [:div.status-card
-            [:p.eyebrow "403"]
-            [:h1 "Not allowed"]
-            [:p.lead message]
-            [:form {:method "post" :action "/logout"}
-             [:button.button--primary {:type "submit"} "Sign out"]]]]]]))
+  (status-page
+   {:eyebrow "403"
+    :heading "Not allowed"
+    :lead    message
+    :actions [[:form.inline-form {:method "post" :action "/logout"}
+               [:button.button--primary {:type "submit"} "Sign out"]]]}))
 
 (defn unavailable
   "The body for a 503 — a temporary, self-resolving pause (e.g. a notebook
    that's spent its monthly budget), not a permanent denial like a 403."
   [message]
-  (page "Temporarily paused"
-        [:div
-         (site-header)
-         [:main
-          [:section.status
-           [:div.status-card
-            [:p.eyebrow "503"]
-            [:h1 "Temporarily paused"]
-            [:p.lead message]
-            [:a.button {:href "/"} "Back to the homepage"]]]]]))
+  (status-page
+   {:eyebrow "503"
+    :heading "Temporarily paused"
+    :lead    message
+    :actions [[:a.button {:href "/"} "Back to the homepage"]]}))
 
 (defn error
   "The body for a 500. Deliberately static — it must render even when the
    thing that failed is the database or a domain component."
   []
-  (page "Something went wrong"
-        [:div
-         (site-header)
-         [:main
-          [:section.status
-           [:div.status-card
-            [:p.eyebrow "500"]
-            [:h1 "Something went wrong"]
-            [:p.lead "An unexpected error occurred on our end. Please try again in a moment."]
-            [:a.button {:href "/"} "Back to the homepage"]]]]]))
+  (status-page
+   {:eyebrow "500"
+    :heading "Something went wrong"
+    :lead    "An unexpected error occurred on our end. Please try again in a moment."
+    :actions [[:a.button {:href "/"} "Back to the homepage"]]}))

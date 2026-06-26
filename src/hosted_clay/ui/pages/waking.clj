@@ -6,14 +6,12 @@
   (:require [hosted-clay.ui.layout :as layout]))
 
 (defn render []
-  (layout/page
-   "Waking up…"
-   [:main
-    [:section.status
-     [:div.status-card
-      [:div.spinner {:role "status" :aria-label "Waking up"}]
-      [:h1 "Waking up"]
-      [:p.lead
-       "This notebook is starting back up. This can take up to a minute; "
-       "the page refreshes itself."]]]]
-   {:head [:meta {:http-equiv "refresh" :content "4"}]}))
+  (layout/status-page
+   {:title     "Waking up…"
+    :header?   false
+    :spinner?  true
+    :eyebrow   "Waking up"
+    :heading   "Starting back up"
+    :lead      (str "This notebook is starting back up. This can take up to a "
+                    "minute; the page refreshes itself.")
+    :head      [:meta {:http-equiv "refresh" :content "4"}]}))
