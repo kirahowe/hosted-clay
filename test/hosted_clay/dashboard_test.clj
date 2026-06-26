@@ -21,14 +21,21 @@
   [nb limit awake-hours]
   (dashboard/render user nb "https://clay.test" limit (long (* awake-hours 3600))))
 
-(deftest usage-meter-shows-approximate-hours-and-percent
+(deftest usage-meter-shows-hours-out-of-the-limit
   (let [html (render (notebook) 50 12)]
-    (testing "the figure is the rounded hours out of the limit"
-      (is (str/includes? html "12 of 50 hours")))
+    (testing "the figure shows hours-and-minutes out of the limit"
+      (is (str/includes? html "12h of 50h")))
     (testing "the bar is drawn to the right percentage (12/50 = 24%)"
       (is (str/includes? html "24%"))
       (is (str/includes? html "width:24%"))
       (is (str/includes? html "usage-track")))))
+
+(deftest usage-meter-shows-minute-granularity
+  (testing "fractional hours render to the minute, not rounded to the hour"
+    (is (str/includes? (render (notebook) 50 2.5) "2h 30m of 50h"))
+    (is (str/includes? (render (notebook) 50 0.25) "15m of 50h")))
+  (testing "the bar still reports whole-percent (2.5/50 = 5%)"
+    (is (str/includes? (render (notebook) 50 2.5) "width:5%"))))
 
 (deftest usage-meter-caps-the-bar-at-full
   (let [html (render (notebook) 50 80)]
@@ -40,7 +47,7 @@
   (let [html (render (notebook) nil 12)]
     (testing "a disabled cap shows hours but no bar and no 'of N' framing"
       (is (str/includes? html "Usage this month"))
-      (is (str/includes? html "≈ 12 hours"))
+      (is (str/includes? html "≈ 12h"))
       (is (not (str/includes? html "usage-track")))
       (is (not (str/includes? html "of 50"))))))
 

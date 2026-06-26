@@ -166,6 +166,12 @@
   :max-running       #ig/ref :hosted-clay/max-running
   :usage-limit-hours #ig/ref :hosted-clay/usage-limit-hours
   :usage-warn-hours  #ig/ref :hosted-clay/usage-warn-hours
+  ;; The census poll drives the usage meter, so its cadence is the meter's
+  ;; granularity. At 1 tick (1 minute) the meter tracks awake time to ~1 minute —
+  ;; well finer than the ~1%/30-min the budget needs — while the cost log is
+  ;; throttled to every 5th census so frequent sampling stays greppable.
+  :census-every-ticks      1
+  :census-log-every-ticks  5
   ;; How long a static snapshot may age before the census refreshes it off the
   ;; awake set (so the share/source views stay near the last save without ever
   ;; waking a sprite).

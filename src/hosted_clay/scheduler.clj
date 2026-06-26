@@ -22,11 +22,13 @@
 
 (defn- loop!
   [{:keys [datasource sprites-client email tick-ms sweep-every-ticks census-every-ticks
-           pool-target max-sprites max-running usage-limit-hours usage-warn-hours
-           snapshot-refresh-minutes warn-after-days delete-after-days base-url]}
+           census-log-every-ticks pool-target max-sprites max-running usage-limit-hours
+           usage-warn-hours snapshot-refresh-minutes warn-after-days delete-after-days base-url]}
    running?]
-  ;; Each awake sample during a census run is worth one census interval of
-  ;; awake time (nominal — close enough for a soft monthly budget).
+  ;; Each awake sample during a census run is worth one census interval of awake
+  ;; time (nominal — close enough for a soft monthly budget). A short interval
+  ;; keeps the usage meter fine-grained: at a 1-minute census the meter advances
+  ;; ~1 minute at a time, tracking real usage to within roughly a minute.
   (let [census-interval-seconds (long (/ (* tick-ms census-every-ticks) 1000))]
     (loop [tick 0]
       (when @running?
@@ -38,16 +40,22 @@
           (run-quietly! :sprite-census
                         (fn []
                           ;; One status poll feeds both the cost log and the
-                          ;; per-user usage meter.
+                          ;; per-user usage meter. Poll + metering run every
+                          ;; census tick (fine granularity for the meter); the
+                          ;; cost log is throttled to census-log-every-ticks so
+                          ;; frequent sampling doesn't drown the greppable signal.
                           (let [c (census/gather datasource sprites-client)]
-                            (census/log! c {:max-sprites max-sprites :max-running max-running})
+                            (when (zero? (mod tick census-log-every-ticks))
+                              (census/log! c {:max-sprites max-sprites :max-running max-running}))
                             (usage/record! datasource email (:awake-notebooks c)
                                            {:interval-seconds census-interval-seconds
                                             :warn-hours       usage-warn-hours
                                             :limit-hours      usage-limit-hours
                                             :base-url         base-url})
-                            ;; Refresh static snapshots off the same awake set,
-                            ;; so the share/source views never wake a sprite.
+                            ;; Refresh static snapshots off the same awake set, so
+                            ;; the share/source views never wake a sprite.
+                            ;; (Internally throttled to snapshot-refresh-minutes,
+                            ;; so a frequent census just checks age more often.)
                             (snapshot/refresh-awake! datasource sprites-client
                                                      (:awake-notebooks c)
                                                      snapshot-refresh-minutes)))))
@@ -62,7 +70,8 @@
 
 (defmethod ig/init-key :hosted-clay/scheduler
   [_ config]
-  (let [config   (merge {:tick-ms 60000 :sweep-every-ticks 60 :census-every-ticks 5} config)
+  (let [config   (merge {:tick-ms 60000 :sweep-every-ticks 60
+                         :census-every-ticks 1 :census-log-every-ticks 5} config)
         running? (atom true)]
     (log/info "scheduler starting" {:tick-ms      (:tick-ms config)
                                     :pool-target  (:pool-target config)

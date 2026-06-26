@@ -51,24 +51,40 @@
     (when eyebrow [:p.eyebrow eyebrow])
     (when title [:h2 title])]))
 
+(defn- hours-minutes
+  "Whole-minute 'Xh Ym' for `seconds`, dropping a zero hours or zero minutes
+   ('25m', '2h', '2h 25m', '0m'). Minute granularity — the census samples awake
+   time about once a minute, so the figure is meaningful down to the minute
+   rather than rounded to the nearest hour."
+  [seconds]
+  (let [total-min (Math/round (/ (double seconds) 60))
+        h         (quot total-min 60)
+        m         (rem total-min 60)]
+    (cond
+      (zero? total-min) "0m"
+      (zero? m)         (str h "h")
+      (zero? h)         (str m "m")
+      :else             (str h "h " m "m"))))
+
 (defn- usage-section
   "Approximate monthly active-hours — the user's total across all their
    notebooks, passed in by the handler. Sampled, not billed, so the copy stays a
-   friendly estimate. A nil/0 limit drops the bar and the framing."
+   friendly estimate, but shown to the minute. A nil/0 limit drops the bar and
+   the framing."
   [awake-seconds limit-hours]
-  (let [hours   (/ awake-seconds 3600.0)
-        whole   (Math/round hours)
+  (let [used    (hours-minutes awake-seconds)
+        hours   (/ awake-seconds 3600.0)
         capped? (and limit-hours (pos? limit-hours))
         pct     (when capped? (min 100 (Math/round (* 100.0 (/ hours limit-hours)))))]
     [:section.notebook__section.usage
      (section-head "Usage this month" "Active hours")
      [:div.usage-head
-      [:span.usage-figure "≈ " (str whole) (when capped? (str " of " limit-hours)) " hours"]
+      [:span.usage-figure "≈ " used (when capped? (str " of " limit-hours "h"))]
       (when (some? pct) [:span.usage-pct (str pct "%")])]
      (when (some? pct)
        [:div.usage-track {:role "progressbar" :aria-valuemin 0 :aria-valuemax 100
                           :aria-valuenow pct :aria-label "Monthly active-hours used"
-                          :aria-valuetext (str whole " of " limit-hours " hours (" pct "%)")}
+                          :aria-valuetext (str used " of " limit-hours "h (" pct "%)")}
         [:div.usage-fill {:style (str "width:" pct "%")}]])
      [:p.hint
       (if capped?
