@@ -1,7 +1,8 @@
-{:paths ["tasks"]
+{:paths ["tasks" "test"]
 
  :tasks
- {:requires ([depends :as dep])
+ {:requires ([depends :as dep]
+             [dev-task])
 
   flyctl:installed
   {:private true
@@ -15,8 +16,8 @@
             :override-builtin true
             :task             (dep/sh! "clojure" "-M:dev:test:nrepl")}
 
-  dev      {:doc  "Run the dev system"
-            :task (dep/sh! "clojure" "-M:dev")}
+  dev      {:doc  "Run the dev system; reuses a running REPL (bb repl / editor) if one is up"
+            :task (dev-task/dev!)}
 
   lint     {:doc  "Lint with clj-kondo"
             :task (dep/sh! "clojure" "-M:lint")}
@@ -30,11 +31,14 @@
   test     {:doc  "Run tests with kaocha"
             :task (dep/sh! "clojure" "-M:test")}
 
+  test:tasks {:doc  "Run tests for the bb task infrastructure (under bb)"
+              :task ((requiring-resolve 'test-runner/run-tests))}
+
   admin    {:doc  "Run the read-only admin usage CLI/TUI"
             :task (apply dep/sh! "clojure" "-M:admin" *command-line-args*)}
 
-  ci       {:doc     "Lint + fmt-check + tests"
-            :depends [lint fmt test]}
+  ci       {:doc     "Lint + fmt-check + all tests"
+            :depends [lint fmt test test:tasks]}
 
   build    {:doc  "Build an uberjar"
             :task (dep/sh! "clojure" "-T:build" "uberjar")}

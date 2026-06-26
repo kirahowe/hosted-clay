@@ -22,7 +22,10 @@
            :extra-deps  {integrant/repl    {:mvn/version "0.5.1"}
                          nrepl/nrepl       {:mvn/version "1.4.0"}
                          cider/cider-nrepl {:mvn/version "0.59.0"}}
-           :main-opts   ["-m" "hosted-clay.main" "dev.edn"]}
+           ;; Boots the dev system AND a cider-nrepl, advertising
+           ;; .nrepl-port (see hosted-clay.dev.main) so `bb dev`, `bb
+           ;; repl`, and an editor jack-in all converge on one JVM.
+           :main-opts   ["-m" "hosted-clay.dev.main"]}
 
   :test   {:extra-paths ["test" "env/test/resources"]
            :extra-deps  {lambdaisland/kaocha {:mvn/version "1.91.1392"}
@@ -49,7 +52,7 @@
            :main-opts   ["-m" "hosted-clay.admin.cli"]}
 
   :lint   {:replace-deps {clj-kondo/clj-kondo {:mvn/version "2026.04.15"}}
-           :main-opts    ["-m" "clj-kondo.main" "--lint" "src" "test" "env"]}
+           :main-opts    ["-m" "clj-kondo.main" "--lint" "src" "test" "env" "tasks"]}
 
   :cljfmt {:replace-deps {dev.weavejester/cljfmt {:mvn/version "0.16.4"}}
            :main-opts    ["-m" "cljfmt.main"]}
