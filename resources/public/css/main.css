@@ -344,28 +344,6 @@ dl.meta dd { margin: 0; }
 .notice--error { border-left-color: var(--danger); background: var(--danger-bg); }
 .notice--success { border-left-color: var(--success); background: var(--success-bg); }
 
-/* ---------- badge ---------- */
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  padding: var(--space-1) var(--space-3);
-  border: var(--hairline) solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg-raised);
-  color: var(--fg-muted);
-  white-space: nowrap;
-}
-.badge--ready { color: var(--success); border-color: var(--success); background: var(--success-bg); }
-.badge--provisioning { color: var(--accent); border-color: var(--accent); background: var(--accent-bg); }
-.badge--failed { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
-/* Suspended is a neutral, self-chosen state — the muted default, not a state
-   colour. */
-.badge--suspended { color: var(--fg-muted); border-color: var(--border-strong); background: var(--bg-sunken); }
-
 /* A POST rendered as a single inline button: the wrapping <form> shouldn't add
    a box or break the surrounding flex row (e.g. .actions, the workspace bar). */
 .inline-form { display: contents; }
@@ -384,6 +362,8 @@ dl.meta dd { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   /* Stop the spin entirely; a dimmed ring still reads as "working". */
   .spinner { animation: none; opacity: 0.5; }
+  /* And don't animate the usage bar's width. */
+  .usage-fill { transition: none; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -603,6 +583,68 @@ hanko-auth {
   font-size: var(--step--1);
   max-width: var(--measure-prose);
 }
+
+/* ---------- dashboard ---------- */
+
+/* Identity line under the title: mono, muted, with the email picked out. */
+.dash-meta {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--fg-muted);
+  margin: 0 0 var(--space-6);
+}
+.dash-meta .mono { color: var(--fg); }
+
+/* State readout: a square swatch (zero-radius, like everything here) plus a
+   mono label, coloured by state. */
+.nb-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  white-space: nowrap;
+}
+.nb-status::before {
+  content: "";
+  width: var(--space-2);
+  height: var(--space-2);
+  background: var(--fg-subtle);
+}
+.nb-status--ready::before        { background: var(--success); }
+.nb-status--provisioning::before { background: var(--accent); }
+.nb-status--failed::before       { background: var(--danger); }
+.nb-status--suspended::before    { background: var(--fg-subtle); }
+
+/* The notebook panel reads top-to-bottom: a state + actions bar, then labelled
+   sections (usage, share), then a quiet danger footer. */
+.notebook__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+}
+.notebook__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.notebook__hint {
+  color: var(--fg-muted);
+  margin: 0;
+  max-width: var(--measure-prose);
+}
+.notebook__section { margin-top: var(--space-7); }
+.notebook__section .eyebrow { margin-bottom: var(--space-3); }
+
+.notebook__danger {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+  margin-top: var(--space-7);
+  padding-top: var(--space-5);
+  border-top: var(--hairline) solid var(--border);
+}
+.notebook__danger .subtle { margin: 0; max-width: var(--measure-prose); }
 
 /* ---------- raw source view ---------- */
 

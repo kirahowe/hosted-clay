@@ -37,21 +37,29 @@
 (deftest usage-meter-without-a-limit-drops-the-bar
   (let [html (render (notebook 12) nil)]
     (testing "a disabled cap shows hours but no bar and no 'of N' framing"
-      (is (str/includes? html "12 hours this month"))
+      (is (str/includes? html "Usage this month"))
+      (is (str/includes? html "≈ 12 hours"))
       (is (not (str/includes? html "usage-track")))
       (is (not (str/includes? html "of 50"))))))
 
+(defn- primary-count [html] (count (re-seq #"button--primary" html)))
+
 (deftest dashboard-reflects-a-suspended-notebook
   (let [html (render (assoc (notebook 5) :notebooks/suspended-at "2026-06-24T00:00:00Z") 50)]
-    (testing "the status badge reads 'suspended' and a Resume button is offered"
-      (is (str/includes? html "badge--suspended"))
-      (is (str/includes? html "suspended"))
+    (testing "the status readout reads 'Suspended' and a Resume button is offered"
+      (is (str/includes? html "nb-status--suspended"))
+      (is (str/includes? html "Suspended"))
       (is (str/includes? html "/resume"))
       (is (str/includes? html "Resume")))
-    (testing "an active notebook shows Suspend instead"
+    (testing "exactly one primary action (Resume) — Open drops to secondary"
+      (is (= 1 (primary-count html))))
+    (testing "an active notebook reads 'Ready' and shows Suspend instead"
       (let [active (render (notebook 5) 50)]
+        (is (str/includes? active "nb-status--ready"))
         (is (str/includes? active "/suspend"))
-        (is (not (str/includes? active "badge--suspended")))))))
+        (is (not (str/includes? active "nb-status--suspended")))
+        (testing "with exactly one primary action (Open)"
+          (is (= 1 (primary-count active))))))))
 
 (deftest dashboard-without-a-notebook-omits-the-meter
   (let [html (dashboard/render user nil "https://clay.test" 50)]
