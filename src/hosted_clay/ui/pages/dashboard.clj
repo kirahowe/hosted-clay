@@ -1,6 +1,5 @@
 (ns hosted-clay.ui.pages.dashboard
-  (:require [hosted-clay.ui.layout :as layout]
-            [hosted-clay.usage :as usage]))
+  (:require [hosted-clay.ui.layout :as layout]))
 
 (defn- header []
   (layout/site-header
@@ -43,16 +42,26 @@
        [:button {:type "submit" :class (when suspended "button--primary")}
         (if suspended "Resume" "Suspend")]]]]))
 
+(defn- section-head
+  "The shared eyebrow + heading rhythm used across the homepage — reused here
+   so the dashboard reads in the same voice as the landing page. A nil `title`
+   renders the eyebrow alone."
+  ([eyebrow title]
+   [:div.section-head
+    (when eyebrow [:p.eyebrow eyebrow])
+    (when title [:h2 title])]))
+
 (defn- usage-section
-  "Approximate monthly active-hours. Sampled, not billed, so the copy stays a
+  "Approximate monthly active-hours — the user's total across all their
+   notebooks, passed in by the handler. Sampled, not billed, so the copy stays a
    friendly estimate. A nil/0 limit drops the bar and the framing."
-  [notebook limit-hours]
-  (let [hours   (/ (usage/awake-seconds-this-month notebook) 3600.0)
+  [awake-seconds limit-hours]
+  (let [hours   (/ awake-seconds 3600.0)
         whole   (Math/round hours)
         capped? (and limit-hours (pos? limit-hours))
         pct     (when capped? (min 100 (Math/round (* 100.0 (/ hours limit-hours)))))]
     [:section.notebook__section.usage
-     [:p.eyebrow "Usage this month"]
+     (section-head "Usage this month" "Active hours")
      [:div.usage-head
       [:span.usage-figure "≈ " (str whole) (when capped? (str " of " limit-hours)) " hours"]
       (when (some? pct) [:span.usage-pct (str pct "%")])]
@@ -61,45 +70,51 @@
                           :aria-valuenow pct :aria-label "Monthly active-hours used"
                           :aria-valuetext (str whole " of " limit-hours " hours (" pct "%)")}
         [:div.usage-fill {:style (str "width:" pct "%")}]])
-     [:p.subtle
+     [:p.hint
       (if capped?
-        (str "About " limit-hours " free hours of active notebook time a month, for "
-             "now — a rough estimate, not a bill. Only awake time counts, and it "
-             "resets at the start of next month.")
-        (str "Roughly the active notebook time you've used this month. No limit "
-             "right now — only awake time counts, and it resets next month."))]]))
+        (str "Usage is free while we're subsidizing it during this demo phase. "
+             "Everyone gets about " limit-hours " hours of active notebook time per "
+             "month. A notebook only counts as active while it's running, and each "
+             "user's hours reset at the start of each month. We sample usage rather "
+             "than measure it exactly, so the " limit-hours "-hour limit is "
+             "approximate, not a hard cutoff.")
+        (str "Usage is free while we're subsidizing it during this demo phase. "
+             "There's no limit right now — a notebook only counts as active while "
+             "it's running, and your hours reset at the start of each month."))]]))
 
 (defn- share-section [id share-url]
   [:section.notebook__section
-   [:p.eyebrow "Share"]
+   (section-head "Share" "Read-only link")
    [:div.copyable
     [:code share-url]
     [:button.copy {:type "button" :data-copy share-url} "Copy"]]
-   [:p.muted
-    "Read-only — anyone with the link sees the rendered notebook. Just need the "
-    "code? "
+   [:p.hint
+    "Anyone with the link sees the rendered notebook — no account needed. "
+    "Just need the code? "
     [:a {:href (str "/notebooks/" id "/source")} "View the raw source"]
     " (works even while it's paused)."]])
 
 (defn- danger-footer [id]
-  [:div.notebook__danger
-   [:form.inline-form {:method "post" :action (str "/notebooks/" id "/delete")
-                       :onsubmit "return confirm('Delete this notebook and its environment? This cannot be undone.')"}
+  [:section.notebook__section.notebook__danger
+   (section-head "Danger zone" "Delete notebook")
+   [:form {:method "post" :action (str "/notebooks/" id "/delete")
+           :onsubmit "return confirm('Delete this notebook and its environment? This cannot be undone.')"}
     [:button.button--danger {:type "submit"} "Delete notebook"]]
-   [:p.subtle "Idle for 30 days, a notebook is deleted automatically — we email a warning first."]])
+   [:p.hint
+    "This deletes the notebook and everything in its environment. Idle for 30 "
+    "days, a notebook is deleted automatically — we email a warning first."]])
 
-(defn- ready-body [notebook share-url limit-hours]
-  (let [id        (:notebooks/id notebook)
-        suspended (suspended? notebook)]
+(defn- ready-body [notebook share-url limit-hours awake-seconds]
+  (let [suspended (suspended? notebook)]
     (list
      (action-bar notebook)
-     [:p.notebook__hint
+     [:p.hint.notebook__state-hint
       (if suspended
         "Its sprite is asleep and not billing — resume to pick up where you left off."
         "Open it to edit the source and watch the rendered output update as you save.")]
-     (usage-section notebook limit-hours)
-     (share-section id share-url)
-     (danger-footer id))))
+     (usage-section awake-seconds limit-hours)
+     (share-section (:notebooks/id notebook) share-url)
+     (danger-footer (:notebooks/id notebook)))))
 
 (defn- provisioning-body [notebook]
   (list
@@ -121,19 +136,18 @@
                           :onsubmit "return confirm('Delete this notebook? This cannot be undone.')"}
        [:button.button--danger {:type "submit"} "Delete"]]])))
 
-(defn- notebook-card [notebook base-url limit-hours]
+(defn- notebook-card [notebook base-url limit-hours awake-seconds]
   (let [status    (:notebooks/status notebook)
         share-url (str base-url "/s/" (:notebooks/share-token notebook) "/")]
     [:section.card.notebook
      (case status
-       "ready"  (ready-body notebook share-url limit-hours)
+       "ready"  (ready-body notebook share-url limit-hours awake-seconds)
        "failed" (failed-body notebook)
        (provisioning-body notebook))]))
 
 (defn- no-notebook []
-  [:section.card.card--accent
-   [:p.eyebrow "Start here"]
-   [:h2 "Create your notebook"]
+  [:section.card.card--accent.notebook
+   (section-head "Start here" "Create your notebook")
    [:p.lead
     "You get one free notebook: a private Linux machine with Clay, "
     "Noj, and a browser editor, ready in seconds."]
@@ -143,25 +157,25 @@
      [:input {:type "text" :id "title" :name "title"
               :placeholder "My notebook" :required true :maxlength 120}]]
     [:button.button--primary {:type "submit"} "Create notebook"]]
-   [:p.subtle
+   [:p.hint
     "If no pre-warmed environment is free, creating one takes a couple of "
     "minutes while it's built — we'll show progress."]])
 
 (defn- page-header [user notebook]
-  (list
+  [:section.dash-head
    [:p.eyebrow "Dashboard"]
    [:h1 (if notebook (:notebooks/title notebook) "Your notebook")]
    [:p.dash-meta
     [:span.mono (:users/email user)]
-    (when notebook (list " · created " (day (:notebooks/created-at notebook))))]))
+    (when notebook (list " · created " (day (:notebooks/created-at notebook))))]])
 
-(defn render [user notebook base-url limit-hours]
+(defn render [user notebook base-url limit-hours awake-seconds]
   (layout/page
    "Dashboard"
    [:div
     (header)
-    [:main.dashboard
+    [:main
      (page-header user notebook)
      (if notebook
-       (notebook-card notebook base-url limit-hours)
+       (notebook-card notebook base-url limit-hours awake-seconds)
        (no-notebook))]]))

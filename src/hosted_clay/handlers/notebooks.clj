@@ -70,7 +70,7 @@
       (fn [notebook]
         (let [ready? (= "ready" (:notebooks/status notebook))]
           (cond
-            (and ready? (usage/notebook-over-limit? notebook usage-limit-hours))
+            (and ready? (usage/user-over-limit? datasource (:notebooks/user-id notebook) usage-limit-hours))
             ;; 429, matching the proxy — the page is informational, but the status
             ;; should still read as "refused for the month", not a normal 200.
             (response/html 429 (workspace/render-over-limit notebook usage-limit-hours))
@@ -222,7 +222,7 @@
     (with-owned-notebook datasource req
       (fn [notebook]
         (cond
-          (usage/notebook-over-limit? notebook usage-limit-hours)
+          (usage/user-over-limit? datasource (:notebooks/user-id notebook) usage-limit-hours)
           (over-limit-response req notebook usage-limit-hours)
 
           (notebooks/suspended? notebook)

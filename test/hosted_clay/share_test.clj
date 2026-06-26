@@ -44,8 +44,10 @@
   (ig/init-key :hosted-clay.handlers/share
                {:datasource ds :sprites-client client :usage-limit-hours 50}))
 
-(defn- over-limit! [ds id]
-  (crud/update! ds :notebooks id {:usage-month (usage/current-month) :awake-seconds (* 99 3600)}))
+(defn- over-limit! [ds nb]
+  (crud/create! ds :user-usage {:user-id     (:notebooks/user-id nb)
+                                :usage-month (usage/current-month)
+                                :awake-seconds (* 99 3600)}))
 
 (deftest share-prefers-the-static-snapshot
   (with-ready-notebook
@@ -66,7 +68,7 @@
               (is (str/includes? (:body resp) "<html>SNAPSHOT</html>"))
               (is (= 1 @forwarded) "the static path did not proxy")))
           (testing "the static snapshot is served even when the owner is over the limit"
-            (over-limit! ds (:notebooks/id nb))
+            (over-limit! ds nb)
             (let [resp (get-doc)]
               (is (= 200 (:status resp)))
               (is (str/includes? (:body resp) "SNAPSHOT"))
@@ -75,7 +77,7 @@
 (deftest share-pauses-over-limit-without-a-snapshot
   (with-ready-notebook
     (fn [ds nb]
-      (over-limit! ds (:notebooks/id nb))
+      (over-limit! ds nb)
       (let [token     (:notebooks/share-token nb)
             forwarded (atom 0)
             handler   (share-handler ds)]

@@ -20,15 +20,17 @@
 
 (defn- with-notebook!
   "Provision a user with a notebook, accruing `awake-seconds` into the current
-   month. Returns the user row."
+   month's per-user usage. Returns the user row."
   [ds email awake-seconds]
   (let [user (provision-user! ds email)
         nb   (notebooks/create! ds client {:max-sprites 10} (:users/id user) "T")]
-    ;; The empty test pool yields a 'provisioning' row; mark it ready (and set
-    ;; usage) so the report surfaces a realistic, deterministic status.
-    (crud/update! ds :notebooks (:notebooks/id nb)
-                  {:status "ready"
-                   :usage-month (usage/current-month) :awake-seconds awake-seconds})
+    ;; The empty test pool yields a 'provisioning' row; mark it ready so the
+    ;; report surfaces a realistic, deterministic status.
+    (crud/update! ds :notebooks (:notebooks/id nb) {:status "ready"})
+    ;; Usage lives on the user, not the notebook.
+    (crud/create! ds :user-usage {:user-id     (:users/id user)
+                                  :usage-month (usage/current-month)
+                                  :awake-seconds awake-seconds})
     user))
 
 (defn- with-stubbed-sprites [f]
@@ -67,7 +69,7 @@
         (testing "a user with a notebook reports notebook-count 1 + its status"
           (is (= 1 (:notebook-count has)))
           (is (= "ready" (:status has))))
-        (testing "month-scoped awake-hours read off the notebook"
+        (testing "month-scoped awake-hours read off the user's usage"
           (is (== 10.0 (:awake-hours has))))
         (testing "spend uses the assumed size: 10 * (0.07*2 + 0.04375*4) = 3.15"
           (is (= 3.15 (:spend has))))
@@ -80,10 +82,11 @@
 (deftest report-ignores-previous-month-usage
   (with-stubbed-sprites
     (fn [ds]
-      (let [user (provision-user! ds "stale@example.com")
-            nb   (notebooks/create! ds client {:max-sprites 10} (:users/id user) "T")]
-        (crud/update! ds :notebooks (:notebooks/id nb)
-                      {:usage-month "2000-01" :awake-seconds (* 999 3600)})
+      (let [user (provision-user! ds "stale@example.com")]
+        (notebooks/create! ds client {:max-sprites 10} (:users/id user) "T")
+        (crud/create! ds :user-usage {:user-id     (:users/id user)
+                                      :usage-month "2000-01"
+                                      :awake-seconds (* 999 3600)})
         (let [row (row-for (data/report ds {}) "stale@example.com")]
           (testing "a total from a previous month doesn't count toward this month"
             (is (== 0.0 (:awake-hours row)))

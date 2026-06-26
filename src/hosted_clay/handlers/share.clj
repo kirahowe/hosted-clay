@@ -65,7 +65,7 @@
         ;; No snapshot yet (brand-new notebook) → fall back to the live sprite,
         ;; unless the owner is over budget, in which case stay paused so viewers
         ;; can't keep it awake (and billing) on the owner's behalf.
-        (usage/notebook-over-limit? notebook usage-limit-hours)
+        (usage/user-over-limit? datasource (:notebooks/user-id notebook) usage-limit-hours)
         (response/unavailable "This notebook has reached its monthly limit and is paused until next month.")
 
         ;; Likewise don't wake a sprite the owner has manually suspended.

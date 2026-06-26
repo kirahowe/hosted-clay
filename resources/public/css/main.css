@@ -122,6 +122,17 @@ strong { font-weight: 600; }
 .subtle { color: var(--fg-subtle); }
 .mono { font-family: var(--font-mono); }
 
+/* A secondary explanatory note under a control or section — one consistent
+   treatment wherever it appears (the state hint, the usage note, the share
+   note). The space-4 top margin wins the margin-collapse against whatever
+   precedes it, so the gap above a hint is uniform. */
+.hint {
+  color: var(--fg-muted);
+  font-size: var(--step--1);
+  line-height: 1.5;
+  margin: var(--space-4) 0 0;
+}
+
 /* ---------- site header ---------- */
 
 header.site {
@@ -320,9 +331,14 @@ dl.meta dd { margin: 0; }
 }
 .copyable:last-child { margin-bottom: 0; }
 .copyable code {
+  flex: 1 1 0;
+  min-width: 0;
   padding: var(--space-2) var(--space-3);
   border: var(--hairline) solid var(--border);
   background: var(--bg-raised);
+  white-space: nowrap;
+  overflow-wrap: normal;
+  overflow-x: auto;
 }
 .copy {
   font-family: var(--font-mono);
@@ -412,6 +428,21 @@ main > section.hero { margin-bottom: 0; }
 .hero .eyebrow { margin-bottom: var(--space-3); }
 .hero h1 { margin-bottom: var(--space-5); }
 .hero .lead { margin-bottom: var(--space-6); }
+
+/* ---------- dashboard page header ---------- */
+
+/* The dashboard's page-header rhymes with the hero: the same top air, so the
+   two pages open with the same posture. The h1 stays at step-4 (not the
+   hero's display size) — an app page shouldn't shout as loud as the landing
+   page. No closing hairline — the notebook card below already provides a
+   visual boundary, so a rule here would just be clutter. */
+.dash-head {
+  padding: var(--space-8) 0 var(--space-7);
+}
+main > section.dash-head { margin-bottom: var(--space-8); }
+.dash-head .eyebrow { margin-bottom: var(--space-3); }
+.dash-head h1 { margin-bottom: var(--space-5); }
+.dash-head .dash-meta { margin-bottom: 0; }
 
 /* ---------- feature grid ---------- */
 
@@ -579,11 +610,6 @@ hanko-auth {
   background: var(--accent);
   transition: width var(--transition-slow);
 }
-.usage .subtle {
-  font-size: var(--step--1);
-  max-width: var(--measure-prose);
-}
-
 /* ---------- dashboard ---------- */
 
 /* Identity line under the title: mono, muted, with the email picked out. */
@@ -620,31 +646,36 @@ hanko-auth {
    sections (usage, share), then a quiet danger footer. */
 .notebook__bar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-3);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
 }
 .notebook__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
-.notebook__hint {
-  color: var(--fg-muted);
-  margin: 0;
-  max-width: var(--measure-prose);
-}
+
+/* Each section inside a notebook card reuses the homepage's section-head
+   rhythm — eyebrow + h2 at the same step as a page section, so the blocks
+   read as real sections rather than quiet labels. A subsection (Usage, Share,
+   Danger zone) opens with air above it, matching the 48px rhythm the page
+   sections set above them. The action bar is exempt: it's the card's header,
+   not a labelled section, so it sits tight against the card's top padding. */
 .notebook__section { margin-top: var(--space-7); }
-.notebook__section .eyebrow { margin-bottom: var(--space-3); }
+.notebook__section:first-child { margin-top: 0; }
+/* A section-head inside a notebook card tightens its bottom margin so the
+   body follows quickly — the card is a denser surface than a page section. */
+.notebook__section .section-head { margin-bottom: var(--space-4); }
+.notebook__section .section-head h2 { margin: 0; }
+
+/* The status hint under the action bar — quieter than a labelled section: a
+   one-line read that bridges the bar and the first section below. Tightens its
+   top margin so it clusters with the bar (space-2) rather than opening a new
+   section's worth of air (the default space-4). */
+.notebook__state-hint { margin-top: var(--space-2); }
 
 .notebook__danger {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3) var(--space-5);
-  margin-top: var(--space-7);
   padding-top: var(--space-5);
   border-top: var(--hairline) solid var(--border);
 }
-.notebook__danger .subtle { margin: 0; max-width: var(--measure-prose); }
 
 /* ---------- raw source view ---------- */
 

@@ -84,11 +84,10 @@
   (frequencies (map :notebooks/user-id notebooks)))
 
 (defn- row
-  "One report row for `user`, given its notebook (or nil) and assumed size."
-  [user notebook counts cpus gb-ram]
-  (let [awake-hours (if notebook
-                      (/ (usage/awake-seconds-this-month notebook) 3600.0)
-                      0.0)]
+  "One report row for `user`, given its notebook (or nil), its accrued awake
+   seconds this month, and the assumed size."
+  [user notebook counts awake-seconds cpus gb-ram]
+  (let [awake-hours (/ awake-seconds 3600.0)]
     {:email          (:users/email user)
      :user-id        (:users/id user)
      :notebook-count (get counts (:users/id user) 0)
@@ -109,15 +108,22 @@
    Rows are sorted by spend descending (then email) so the costliest users
    surface first. All spend/hours math lives here, not in the UI."
   [ds {:keys [cpus gb-ram] :or {cpus default-cpus gb-ram default-gb-ram}}]
-  (let [users     (crud/find-many ds :users)
+  (let [month     (usage/current-month)
+        users     (crud/find-many ds :users)
         notebooks (crud/find-many ds :notebooks)
         counts    (notebook-counts notebooks)
         by-user   (into {} (map (juxt :notebooks/user-id identity)) notebooks)
+        ;; This month's accrued usage is keyed on the user (in user_usage), not
+        ;; the notebook — so it's reported even for a user between notebooks, and
+        ;; a previous month's row is excluded by the month filter.
+        usage-by-user (into {} (map (juxt :user-usage/user-id :user-usage/awake-seconds))
+                            (crud/find-many ds :user-usage {:usage-month month}))
         rows      (->> users
-                       (map #(row % (get by-user (:users/id %)) counts cpus gb-ram))
+                       (map #(row % (get by-user (:users/id %)) counts
+                                  (get usage-by-user (:users/id %) 0) cpus gb-ram))
                        (sort-by (juxt (comp - :spend) :email))
                        vec)]
-    {:month  (usage/current-month)
+    {:month  month
      :cpus   cpus
      :gb-ram gb-ram
      :rows   rows

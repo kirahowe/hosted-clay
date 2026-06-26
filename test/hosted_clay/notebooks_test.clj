@@ -174,15 +174,18 @@
            (with-redefs [proxy/forward    (fn [& _] (swap! forwarded inc) {:status 200})
                          notebooks/touch! (fn [& _] (swap! touched inc) nil)]
              (testing "under the limit, the request is forwarded and the sprite touched"
-               (crud/update! ds :notebooks id {:usage-month   (usage/current-month)
-                                               :awake-seconds (* 10 3600)})
+               (crud/create! ds :user-usage {:user-id     (:users/id user)
+                                             :usage-month (usage/current-month)
+                                             :awake-seconds (* 10 3600)})
                (let [resp (handler req)]
                  (is (= 200 (:status resp)))
                  (is (= 1 @forwarded))
                  (is (= 1 @touched))))
              (testing "over the limit, refused with 429 — never forwarded, never touched"
-               (crud/update! ds :notebooks id {:usage-month   (usage/current-month)
-                                               :awake-seconds (* 50 3600)})
+               (crud/update-where! ds :user-usage
+                                   [:and [:= :user-id (:users/id user)]
+                                    [:= :usage-month (usage/current-month)]]
+                                   {:awake-seconds (* 50 3600)})
                (let [resp (handler req)]
                  (is (= 429 (:status resp)))
                  (is (= 1 @forwarded) "not forwarded again")
@@ -205,8 +208,9 @@
            (testing "after a snapshot, the stored source is shown — even over the limit"
              (with-redefs [exec/exec! (fn [_ _ _ & _] {:exit 0 :out "(ns notebook)\n42" :err ""})]
                (snapshot/capture! ds client nb))
-             (crud/update! ds :notebooks id {:usage-month   (usage/current-month)
-                                             :awake-seconds (* 99 3600)})
+             (crud/create! ds :user-usage {:user-id     (:users/id user)
+                                           :usage-month (usage/current-month)
+                                           :awake-seconds (* 99 3600)})
              (let [resp (handler req)]
                (is (str/includes? (:body resp) "(ns notebook)"))))
            (testing "a notebook you don't own is a 404, not a peek at someone's code"
