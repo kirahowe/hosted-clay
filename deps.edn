@@ -29,6 +29,15 @@
                          ring/ring-mock      {:mvn/version "0.6.2"}}
            :main-opts   ["-m" "kaocha.runner"]}
 
+  ;; Main-opts-only overlay: combined LAST (after :dev:test) so its REPL
+  ;; main-opts win over :test's kaocha runner. Starts an nREPL server with
+  ;; cider middleware and drops into an interactive prompt — writes
+  ;; .nrepl-port so an editor can connect to this same (env-bearing) process.
+  ;; The nrepl/cider deps come from :dev, which it's always combined with.
+  :nrepl  {:main-opts ["-m" "nrepl.cmdline"
+                       "--middleware" "[cider.nrepl/cider-middleware]"
+                       "--interactive"]}
+
   :prod   {:extra-paths ["env/prod/resources"]
            :main-opts   ["-m" "hosted-clay.main" "prod.edn"]}
 

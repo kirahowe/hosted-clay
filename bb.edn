@@ -11,9 +11,9 @@
   {:private true
    :task    (dep/require-cli! "docker" "https://docs.docker.com/get-docker/")}
 
-  repl     {:doc              "Start a Clojure REPL with dev + test on the classpath"
+  repl     {:doc              "Start an interactive nREPL server (dev + test on the classpath); connect your editor to .nrepl-port"
             :override-builtin true
-            :task             (dep/sh! "clojure" "-M:dev:test")}
+            :task             (dep/sh! "clojure" "-M:dev:test:nrepl")}
 
   dev      {:doc  "Run the dev system"
             :task (dep/sh! "clojure" "-M:dev")}
