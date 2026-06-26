@@ -9,6 +9,7 @@
             [integrant.core :as ig]
             [hosted-clay.census :as census]
             [hosted-clay.lifecycle :as lifecycle]
+            [hosted-clay.notebooks :as notebooks]
             [hosted-clay.pool :as pool]
             [hosted-clay.snapshot :as snapshot]
             [hosted-clay.usage :as usage]))
@@ -68,7 +69,13 @@
                                     :max-sprites  (:max-sprites config)
                                     :max-running  (:max-running config)})
     {:running? running?
-     :thread   (async/thread (loop! config running?))}))
+     :thread   (async/thread
+                 ;; One-time startup recovery before the periodic loop: any
+                 ;; notebook left in 'provisioning' is orphaned (its builder
+                 ;; thread died with the previous process), so unstick it.
+                 (run-quietly! :reconcile-provisioning
+                               #(notebooks/reconcile-provisioning! (:datasource config)))
+                 (loop! config running?))}))
 
 (defmethod ig/halt-key! :hosted-clay/scheduler [_ {:keys [running? thread]}]
   (log/info "scheduler stopping")

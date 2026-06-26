@@ -141,6 +141,30 @@
                     (notebooks/finish-provisioning! ds client reset)
                     (is (= "ready" (:notebooks/status (notebooks/by-id ds (:notebooks/id nb)))))))))))))))
 
+(deftest reconcile-unsticks-stranded-provisioning
+  ;; A notebook whose build thread died with a killed/crashed process is left
+  ;; in 'provisioning' forever; startup reconciliation resets it to 'failed' so
+  ;; the owner's Retry path can recover it.
+  (ts/with-db
+    (fn [ds]
+      (stub-sprites
+       (fn [_]
+         (let [user    (make-user ds)
+               ;; create! leaves a 'provisioning' row; the build never runs
+               ;; here, standing in for a process killed mid-provision.
+               stranded (notebooks/create! ds client limits (:users/id user) "T")
+               other    (make-user ds)
+               ready    (notebooks/create! ds client limits (:users/id other) "R")]
+           (crud/update! ds :notebooks (:notebooks/id ready) {:status "ready"})
+           (let [reset (notebooks/reconcile-provisioning! ds)]
+             (testing "it resets exactly the stranded provisioning notebook"
+               (is (= [(:notebooks/id stranded)] (map :notebooks/id reset)))
+               (is (= "failed" (:notebooks/status (notebooks/by-id ds (:notebooks/id stranded))))))
+             (testing "a ready notebook is left untouched"
+               (is (= "ready" (:notebooks/status (notebooks/by-id ds (:notebooks/id ready)))))))
+           (testing "a second pass is a no-op once nothing is provisioning"
+             (is (empty? (notebooks/reconcile-provisioning! ds))))))))))
+
 (deftest pool-claim-is-exclusive
   (ts/with-db
     (fn [ds]

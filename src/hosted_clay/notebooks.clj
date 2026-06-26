@@ -104,6 +104,28 @@
   [ds notebook]
   (crud/update! ds :notebooks (:notebooks/id notebook) {:status "provisioning"}))
 
+(defn reconcile-provisioning!
+  "Recover notebooks stranded mid-provision. `finish-provisioning!` runs on a
+   background thread; if the process dies before it finishes (a kill, crash, or
+   deploy mid-build) that thread dies with it and nothing ever flips the row out
+   of 'provisioning' — so the workspace page polls a status that never changes
+   and spins forever, with no recovery (the Retry path only fires on 'failed').
+   The app is single-instance (one local SQLite file), so at startup no build is
+   in flight: every 'provisioning' row is necessarily orphaned. Reset each to
+   'failed' — the same state a real provisioning failure lands in — so the owner
+   gets the error page and its Retry button, which rebuilds the sprite and
+   cleans any half-built one via finish-provisioning!'s own failure handling.
+   Returns the rows it reset. Meant to run once at startup."
+  [ds]
+  (let [stranded (crud/find-many ds :notebooks {:status "provisioning"})]
+    (doseq [nb stranded]
+      (crud/update! ds :notebooks (:notebooks/id nb) {:status "failed"})
+      (log/warn "reset notebook stranded mid-provision to failed"
+                {:notebook-id (:notebooks/id nb)}))
+    (when (seq stranded)
+      (log/info "reconciled stranded provisioning notebooks" {:count (count stranded)}))
+    stranded))
+
 (defn delete!
   "Delete a notebook and its sprite. The sprite goes first (and
    `delete-sprite!` retries a transient 5xx and tolerates a 404): if it
