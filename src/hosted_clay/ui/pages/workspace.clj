@@ -135,7 +135,7 @@
        "pick up right where you left off — your work and running session are "
        "saved."]
       [:div.actions
-       [:form {:method "post" :action (str "/notebooks/" id "/resume")}
+       [:form.inline-form {:method "post" :action (str "/notebooks/" id "/resume")}
         [:input {:type "hidden" :name "return" :value (str "/notebooks/" id)}]
         [:button.button--primary {:type "submit"} "Resume notebook"]]
        [:a.button {:href "/dashboard"} "← Back to dashboard"]]))))
