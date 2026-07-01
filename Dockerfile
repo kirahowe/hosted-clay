@@ -12,9 +12,16 @@ COPY src ./src
 COPY resources ./resources
 RUN clojure -T:build uberjar
 
+# Litestream streams the SQLite file to an S3-compatible bucket for
+# point-in-time recovery; docker/start.sh only engages it when the
+# LITESTREAM_REPLICA_URL secret is present.
+FROM litestream/litestream:0.3.13 AS litestream
+
 FROM eclipse-temurin:25-jre
 WORKDIR /app
 COPY --from=build /app/target/hosted-clay.jar /app/hosted-clay.jar
+COPY --from=litestream /usr/local/bin/litestream /usr/local/bin/litestream
 COPY env/prod/resources /app/conf
+COPY docker/start.sh /app/start.sh
 EXPOSE 8080
-ENTRYPOINT ["java", "-cp", "/app/conf:/app/hosted-clay.jar", "hosted_clay.main", "prod.edn"]
+ENTRYPOINT ["/app/start.sh"]
