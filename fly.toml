@@ -11,6 +11,11 @@ primary_region = "yyz"
   # BASE_URL and HANKO_API_URL are set with `flyctl secrets set` or here
   # once the app has a hostname.
 
+# Fly takes daily snapshots of the volume automatically (5-day retention by
+# default; raise it with `fly volumes update <id> --snapshot-retention 14`).
+# Those are a coarse safety net — point-in-time recovery comes from
+# Litestream, which docker/start.sh runs whenever the LITESTREAM_REPLICA_URL
+# secret is set (see the Deploy section of the README).
 [mounts]
   source = "data"
   destination = "/data"
