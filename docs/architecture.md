@@ -13,8 +13,8 @@ hiccup), state in file-backed SQLite on a Fly volume. It owns:
   sight (`users` + `identities`, so more providers can be added without
   migration).
 - **Notebook lifecycle** — create (claim a warm sprite, or provision one
-  inline as the slow path), delete, idle warning at 23 days, deletion at
-  30 (`hosted-clay.lifecycle`, run by the scheduler).
+  inline as the slow path), delete, idle warning at 40 days, deletion at
+  50 (`hosted-clay.lifecycle`, run by the scheduler).
 - **Warm pool** — the scheduler keeps `pool-target` provisioned sprites
   ready so "New notebook" is instant. Two limits bound spend: `max-sprites`
   is the registration ceiling (the most sprites — notebooks + pool — the
@@ -73,24 +73,46 @@ hiccup), state in file-backed SQLite on a Fly volume. It owns:
   otherwise.
 - **Static snapshots** (`hosted-clay.snapshot`) — the control plane runs
   24/7, so the read-only share view and the owner's source view are served
-  from it, not the sprite. The census `cat`s two files Clay already maintains
+  from it, not the sprite. The census captures two files Clay already maintains
   on every save — the `.clj` source and the *self-contained* rendered
   `docs/notebook.html` (Clay injects the live-reload socket only at serve-time,
   not into the file, so it's portable as-is) — into a `notebook_snapshots`
   side table (a side table, so the frequent `SELECT *` over `notebooks` skips
   the blobs). It only reads notebooks whose sprite is *already* awake, so a
   snapshot never causes a wake, and it's throttled by `snapshot-refresh-minutes`.
+  Capture is hash-gated to keep recurring transfer near zero: each pass runs
+  one tiny `sha256sum` exec and `cat`s only a file whose hash changed since
+  the stored copy, and the staleness probe reads only `captured_at`, never
+  the blob columns.
   The share view (`/s/:token/`) then serves the stored HTML with zero sprite
   contact — so it costs nothing, never wakes the sprite, and works even while
   the notebook is paused; it falls back to the live proxy only until the first
   snapshot lands. The owner's `/notebooks/:id/source` serves the stored `.clj`,
   ownership-gated with no usage check, so the code is always retrievable.
-- **Email** — only the 23-day deletion warning, sent via Resend's HTTP
+- **Email** — the deletion and usage warnings, sent via Resend's HTTP
   API (`hosted-clay.email`). With no `RESEND_API_KEY` the component logs
   the message instead of sending and warns loudly at startup, so the flow
-  is exercisable in dev. A failed send *throws*, so the notebook is left
-  un-warned and retried on the next sweep rather than marked warned and
-  deleted unannounced.
+  is exercisable in dev. The sender's return value is the delivery
+  contract: a failed send *throws* and the log-only sender returns falsey;
+  either way the notebook/user stays un-warned and is retried later. So
+  `warned_at` is only ever set on a warning somebody actually received —
+  and since deletion requires `warned_at`, a deployment without working
+  email can never delete a notebook unannounced.
+- **Backups** — Litestream runs inside the container whenever the
+  `LITESTREAM_REPLICA_URL` secret is set (`docker/start.sh`): it restores
+  the newest replica onto an empty volume at boot and streams every write
+  to the bucket while the app runs. Fly's automatic daily volume snapshots
+  are the coarse fallback. See the README's Deploy section.
+- **Security headers** (`hosted-clay.web.security-headers`) — wraps the
+  whole handler (outside the router) so every control-plane response
+  carries a strict CSP (`script-src 'self'` — nothing is inline; the login
+  island is a static module and destructive-form confirms are
+  `data-confirm` hooks in app.js), `X-Frame-Options: SAMEORIGIN`, nosniff,
+  a referrer policy, and (on https) HSTS. The proxied prefixes (`/n/`,
+  `/s/`) get only HSTS — their header policy belongs to the proxy. The
+  hanko-elements bundle is vendored under `/static/js/vendor` (pinned,
+  checksum-verified against npm), so the sign-in page executes no code
+  fetched live from a third-party CDN.
 
 ## Notebook sprite
 
