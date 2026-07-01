@@ -13,9 +13,11 @@
  ;; Sprites dashboard (distinct from a laptop's nb-dev-<random>).
  :hosted-clay/sprite-tag "prod"
 
- ;; Hanko Cloud project base URL.
- :hosted-clay.auth/middleware     {:api-url #env "HANKO_API_URL"}
- :hosted-clay.handlers.auth/login {:api-url #env "HANKO_API_URL"}
+ ;; Hanko Cloud project base URL. The security-headers component whitelists
+ ;; its origin in the CSP's connect-src so the login island can reach it.
+ :hosted-clay.auth/middleware      {:api-url #env "HANKO_API_URL"}
+ :hosted-clay.handlers.auth/login  {:api-url #env "HANKO_API_URL"}
+ :hosted-clay.web/security-headers {:hanko-api-url #env "HANKO_API_URL"}
 
  ;; Sprites org token (Fly secret).
  :hosted-clay.sprites/client {:token #env/secret "SPRITES_TOKEN"}

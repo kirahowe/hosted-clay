@@ -1,21 +1,12 @@
 (ns hosted-clay.ui.pages.login
   "The sign-in page. Hanko's <hanko-auth> web component (a JS island)
    runs the passkey/passcode flow and sets the `hanko` session cookie;
-   on session creation we redirect to the dashboard."
-  (:require [hiccup2.core :as h]
-            [hosted-clay.routes :as routes]
-            [hosted-clay.ui.layout :as layout]))
-
-(defn- hanko-island [api-url]
-  ;; TODO: pin the hanko-elements version (esm.run/@teamhanko/hanko-elements@x.y.z)
-  ;; and add SRI, or vendor the module under resources/public/js, before
-  ;; this grows past a prototype. The redirect uses the `hanko` client
-  ;; returned by register() — its onSessionCreated, not a DOM event.
-  (h/raw
-   (str "import { register } from "
-        "'https://esm.run/@teamhanko/hanko-elements';\n"
-        "const { hanko } = await register('" api-url "');\n"
-        "hanko.onSessionCreated(() => { document.location.href = '" (routes/dashboard) "'; });\n")))
+   on session creation login.js redirects to the dashboard. The
+   hanko-elements bundle is vendored under /static/js/vendor (pinned,
+   checksum-verified against npm) and the API URL travels on a data
+   attribute, so the page needs no inline script and no third-party
+   CDN — it works under the site's script-src 'self' CSP."
+  (:require [hosted-clay.ui.layout :as layout]))
 
 (defn render [api-url]
   (layout/page
@@ -30,5 +21,5 @@
        [:p.lead
         "Sign in with a passkey or a one-time email code. New here? "
         "Signing in creates your account."]
-       [:hanko-auth]
-       [:script {:type "module"} (hanko-island api-url)]]]]]))
+       [:hanko-auth {:data-api-url api-url}]
+       [:script {:type "module" :src "/static/js/login.js"}]]]]]))

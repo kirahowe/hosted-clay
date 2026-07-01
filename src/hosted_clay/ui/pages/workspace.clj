@@ -136,5 +136,5 @@
                                     :data-submit-label "Retrying…"}
                  [:button.button--primary {:type "submit"} "Try again"]]
                 [:form.inline-form {:method "post" :action (routes/notebook-delete id)
-                                    :onsubmit "return confirm('Delete this notebook? This cannot be undone.')"}
+                                    :data-confirm "Delete this notebook? This cannot be undone."}
                  [:button.button--danger {:type "submit"} "Delete"]]]})))
