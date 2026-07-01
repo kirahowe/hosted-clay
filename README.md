@@ -24,6 +24,31 @@ org token).
 `/data` for the SQLite file. Secrets: `SPRITES_TOKEN`, `HANKO_API_URL`,
 `BASE_URL`, optionally `RESEND_API_KEY` + `EMAIL_FROM`.
 
+### Backups
+
+The SQLite file lives on a single Fly volume, so back it up two ways:
+
+- **Litestream** (point-in-time recovery, strongly recommended): set the
+  `LITESTREAM_REPLICA_URL` secret (an S3-compatible URL, e.g.
+  `s3://my-bucket/hosted-clay`; for R2/MinIO/B2 embed the endpoint:
+  `s3://BUCKET.ENDPOINT/hosted-clay`) plus `LITESTREAM_ACCESS_KEY_ID` and
+  `LITESTREAM_SECRET_ACCESS_KEY`. The container then streams every write to
+  the bucket and, on boot with an empty volume, restores the latest
+  replica automatically (see `docker/start.sh`). Without the secret the app
+  runs fine but warns loudly that the database exists only on the volume.
+- **Fly volume snapshots** (coarse safety net): taken daily automatically;
+  raise retention with `fly volumes update <id> --snapshot-retention 14`.
+
+### Email
+
+Idle-notebook warnings only *count* when they're actually delivered:
+without `RESEND_API_KEY` the warning is logged instead of sent, the
+notebook is never marked warned, and idle deletion never fires. To make
+the idle policy (warn at 40 days, delete at 50) operative, set
+`RESEND_API_KEY` and an `EMAIL_FROM` on a domain verified in Resend — the
+default (`onboarding@resend.dev`) is Resend's sandbox sender and only
+delivers to addresses verified on your own Resend account.
+
 ## Docs
 
 Architecture and decisions live in [docs/](docs/).
