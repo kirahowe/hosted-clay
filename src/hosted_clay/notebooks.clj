@@ -152,7 +152,7 @@
 (defn suspend!
   "Manually suspend a notebook: the proxy stops forwarding, so the sprite gets
    no traffic and idle-suspends until the owner resumes. Suspending is a
-   deliberate keep-this act, so it counts as activity — it resets the 30-day
+   deliberate keep-this act, so it counts as activity — it resets the idle-deletion
    idle-deletion clock (and clears any pending warning), so a parked notebook
    isn't swept out from under the owner."
   [ds notebook]
@@ -171,7 +171,7 @@
 (defn touch!
   "Record owner activity on a notebook. Writes at most once per minute
    so the proxy path isn't a write-per-request, and clears any pending
-   deletion warning — activity resets the 30-day clock."
+   deletion warning — activity resets the idle-deletion clock."
   [ds notebook]
   (let [stale-before (str (.minus (Instant/now) touch-granularity))]
     (crud/update-where! ds :notebooks

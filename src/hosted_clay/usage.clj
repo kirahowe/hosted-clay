@@ -76,13 +76,14 @@
                  "— Clay notebooks")})
 
 (defn- warn! [ds send-email usage-row-id user notebook seconds {:keys [limit-hours base-url]}]
-  ;; warned-at is written only after send-email returns — send-email throws on a
-  ;; failed delivery, so a failure leaves the row un-warned and the next census
+  ;; warned-at is written only when send-email reports a real delivery — it
+  ;; throws on a failed send and returns falsey from the log-only sender (no
+  ;; RESEND_API_KEY). Either way the row stays un-warned and the next census
   ;; retries it (same pattern as the idle-deletion warning).
-  (send-email (warning-message user notebook seconds limit-hours base-url))
-  (crud/update! ds :user-usage usage-row-id {:warned-at (crud/now)})
-  (log/info "usage warning sent" {:user-id (:users/id user)
-                                  :hours   (/ (double seconds) 3600)}))
+  (when (send-email (warning-message user notebook seconds limit-hours base-url))
+    (crud/update! ds :user-usage usage-row-id {:warned-at (crud/now)})
+    (log/info "usage warning sent" {:user-id (:users/id user)
+                                    :hours   (/ (double seconds) 3600)})))
 
 (defn record!
   "Accrue `interval-seconds` of awake time to each awake notebook's *owner* for

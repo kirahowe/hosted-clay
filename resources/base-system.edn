@@ -94,8 +94,15 @@
  {:router          #ig/ref :hosted-clay.concerns.reitit/router
   :default-handler #ig/ref :hosted-clay.concerns.reitit/default-handler}
 
+ ;; Outside the router, so 404s and error pages carry the baseline headers
+ ;; too. hanko-api-url (whitelisted in connect-src for the login island) is
+ ;; supplied per environment, same as the auth middleware.
+ :hosted-clay.web/security-headers
+ {:handler  #ig/ref :hosted-clay.concerns.reitit/ring-handler
+  :base-url #ig/ref :hosted-clay/base-url}
+
  :hosted-clay.concerns/http-kit
- {:handler #ig/ref :hosted-clay.concerns.reitit/ring-handler
+ {:handler #ig/ref :hosted-clay.web/security-headers
   :opts    {:port 8080 :ip "0.0.0.0"}}
 
  ;; ---------- storage ----------
@@ -223,5 +230,9 @@
   ;; waking a sprite).
   :snapshot-refresh-minutes 15
   :pool-target       2
-  :warn-after-days   23
-  :delete-after-days 30}}
+  ;; Idle policy: warn by email at 40 days idle, delete at 50 — and only
+  ;; ever delete a notebook whose warning was actually delivered
+  ;; (hosted-clay.lifecycle records warned-at only on a real send). nil
+  ;; disables a step.
+  :warn-after-days   40
+  :delete-after-days 50}}
