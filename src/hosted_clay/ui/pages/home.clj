@@ -71,7 +71,7 @@
      {:src     "/static/img/notebook-welcome.png"
       :alt     "A fresh notebook open in the browser: the welcome cell shows a Clojure ns form requiring tablecloth, tableplot, plotje, and fastmath, under the heading \"Welcome to your Clojure data science notebook.\""
       :width   "1970"
-      :height  "646"
+      :height  "645"
       :loading "lazy"}]]])
 
 (defn- features []
