@@ -1,5 +1,5 @@
 /* Design tokens. A Swiss-technical system: a neutral grotesk for prose,
-   monospace for code/identifiers, square corners, hairline rules, generous
+   monospace for code/identifiers, soft corners, hairline rules, generous
    whitespace. The monochrome base carries structure; two accents carry brand —
    Clojure's blue (--accent, for text and interactive elements) and green
    (--accent-2, for decorative fills) — a nod to the language the notebooks run.
@@ -44,15 +44,18 @@
   --font-sans: system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 
-  /* Measures: rem for the page container (predictable), ch for flowing
-     text (tracks the reading rhythm). One container width, shared by the
-     header, main, and footer so they stay edge-aligned. */
+  /* Measures: one container width (rem), shared by the header, main, and
+     footer so they stay edge-aligned. */
   --measure: 60rem;
-  --measure-prose: 58ch;
 
-  --radius: 0;
-  --radius-sm: 0;
+  --radius: 8px;
+  --radius-sm: 4px;
   --hairline: 1px;
+
+  /* A soft, low shadow for surfaces that sit on the page background (cards,
+     the framed preview). Barely there in dark mode, where the border carries
+     the edge instead — kept subtle so it never reads as Material. */
+  --shadow: 0 2px 12px -6px rgba(20, 20, 26, 0.10);
 
   /* Spacing — a 4px grid. Each step is a clean rem value; the early
      steps add 4px each, then the ratio opens up for section-level
@@ -115,5 +118,7 @@
     --danger-bg: #2a1411;
     --success: #4ac26b;
     --success-bg: #11251a;
+
+    --shadow: 0 2px 12px -6px rgba(0, 0, 0, 0.5);
   }
 }

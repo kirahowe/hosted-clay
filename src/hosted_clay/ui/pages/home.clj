@@ -1,5 +1,5 @@
 (ns hosted-clay.ui.pages.home
-  (:require [hiccup2.core :as h]
+  (:require [hosted-clay.routes :as routes]
             [hosted-clay.ui.layout :as layout]))
 
 (def ^:private icon-editor
@@ -47,86 +47,118 @@
    [:circle {:cx "12" :cy "12" :r "9"}]
    [:path {:d "M8 12h8"}]])
 
-(def ^:private preview-code
-  ;; Hand-highlighted Clojure snippet — the welcome cell of a fresh
-  ;; notebook. Spans are decorative; the meaning is in the markup.
-  (h/raw
-   (str "<pre><code>"
-        "<span class=\"c-com\">;; Welcome. Save this cell — Clay re-renders it instantly.</span>\n"
-        "(<span class=\"c-fn\">ns</span> notebook)\n"
-        "(<span class=\"c-fn\">require</span> '[scicloj.tableplot])\n\n"
-        "(<span class=\"c-fn\">-&gt;&gt;</span> \"/data/iris.csv\"\n"
-        "  (<span class=\"c-fn\">tablecloth/read-csv</span>)\n"
-        "  (<span class=\"c-fn\">tableplot/layer-histogram</span> \n"
-        "    {:x <span class=\"c-str\">:sepal-width</span>}))\n\n"
-        "<span class=\"c-com\">;; → renders the histogram beside this cell.</span>\n"
-        "</code></pre>")))
-
 (defn- hero []
   [:section.hero
    [:p.eyebrow "Clay · Noj · Calva — in the browser"]
    [:h1.display
     "Clojure data science," [:br]
-    "zero setup."]
+    "no setup required."]
    [:p.lead
     "Hosted " [:a {:href "https://scicloj.github.io/clay/"} "Clay"]
     " notebooks for the " [:a {:href "https://scicloj.github.io/"} "scicloj"]
-    " ecosystem. Sign in, create a notebook, and you're editing Clojure in the "
-    "browser — " [:a {:href "https://scicloj.github.io/noj/"} "Noj"]
-    " (Tablecloth, Tableplot, and the rest) already on the classpath."]
+    " community. Sign in, spin up a notebook, and try real Clojure data science in the browser — "
+    [:a {:href "https://scicloj.github.io/noj/"} "Noj"]
+    " loaded and ready to go."]
    [:div.actions
-    [:a.button.button--primary.button--lg {:href "/dashboard"}
-     "Create your notebook"]
-    [:a.button.button--lg {:href "https://scicloj.github.io/clay/"}
-     "What's Clay?"]]
-   [:p.subtle "Free during the prototype — one notebook per account."]])
+    [:a.button.button--primary.button--lg {:href (routes/dashboard)}
+     "Create your notebook"]]
+   [:p.subtle "One free notebook per person while this is a prototype."]])
 
 (defn- preview []
   [:section
    [:div.preview
-    [:div.preview-bar
-     [:span.preview-dot] [:span.preview-dot] [:span.preview-dot]
-     [:span.mono "notebook.clj"]]
-    [:div.preview-body preview-code]]])
+    [:img.preview-img
+     {:src     "/static/img/notebook-welcome.png"
+      :alt     "A fresh notebook open in the browser: the welcome cell shows a Clojure ns form requiring tablecloth, tableplot, plotje, and fastmath, under the heading \"Welcome to your Clojure data science notebook.\""
+      :width   "1970"
+      :height  "646"
+      :loading "lazy"}]]])
 
 (defn- features []
   [:section
    [:div.section-head
     [:p.eyebrow "What's in the box"]
-    [:h2 "A real environment, not a toy."]
-    [:p "Everything you'd set up locally, already wired together and running the second you hit create."]]
+    [:h2 "A real environment, ready to go."]
+    [:p "Everything you need to get started, already wired together and running in the browser."]]
    [:div.features
     [:div.feature
      [:span.feature-icon icon-editor]
      [:h3 "A real editor"]
-     [:p "VS Code with Calva, wired to a live nREPL. The same workflow you'd run on your own machine, in a browser tab."]]
+     [:p "VS Code with Calva and power tools already installed, wired to a live nREPL with Clojure's language server already running."]]
     [:div.feature
      [:span.feature-icon icon-live]
-     [:h3 "Live re-render"]
-     [:p "Clay re-renders the notebook on every save. Source and output sit side by side — no context switching."]]
+     [:h3 "Re-render on demand"]
+     [:p "The environment is set up to re-renders the whole notebook with Clay on every save. Or render form-by-form with Calva's Clay integration."]]
     [:div.feature
      [:span.feature-icon icon-stack]
      [:h3 "Noj preloaded"]
-     [:p "Tablecloth, Tableplot, Kindly, and the rest of the scicloj stack, already on the classpath. No deps.edn fiddling."]]
+     [:p "Tablecloth, Tableplot, Plotje, Kindly, and the rest of the scicloj stack, already loaded."]]
     [:div.feature
      [:span.feature-icon icon-sandbox]
      [:h3 "Your own sandbox"]
-     [:p "Each notebook runs in its own Sprite — a stateful Linux machine. You have a shell, a filesystem, your own state."]]
+     [:p "Each notebook runs in its own " [:a {:href "https://sprites.dev"} "Sprite"] ", a stateful Linux machine."]]
     [:div.feature
      [:span.feature-icon icon-share]
      [:h3 "Share read-only"]
-     [:p "A single link — anyone can view the rendered notebook. No accounts, no installs, no setup on their end either."]]
+     [:p "Anyone can view the rendered notebook without needing to log in or install anything."]]
     [:div.feature
      [:span.feature-icon icon-zero]
      [:h3 "Zero setup"]
-     [:p "No local install, no JVM wrangling, no tooling drift. Sign in and you're writing Clojure in seconds."]]]])
+     [:p "No local install, no JVM management, no tooling to set up. Just sign in and you're writing Clojure right away."]]]])
+
+(defn- faq-item
+  [question & answer]
+  [:div.faq-item
+   [:h3.faq-question question]
+   (into [:div.faq-answer] answer)])
+
+(defn- faq []
+  [:section
+   [:div.section-head
+    [:p.eyebrow "More information"]
+    [:h2 "FAQs"]]
+   [:div.faq
+    (faq-item
+     "What is this?"
+     [:p
+      "This is an experiment. Clojure has a lot of benefits when it comes to working with data, but it can be a bit daunting knowing where to start. Clojure's data science community, "
+      [:a {:href "https://scicloj.github.io"} "Scicloj"]
+      ", has put tremendous effort into making Clojure's data science toolkit easier to use and more approachable in recent years, and this is one more contribution toward that effort -- a way to test how much of the barrier to adoption is really just the setup. If we can remove all of that friction by offering a truly zero-setup environment to play with, does getting started feel easier?"]
+     [:p
+      "Here you'll get a fully functional, free notebook with Clojure's full data science stack loaded and running on a real JVM, backed by your very own "
+      [:a {:href "https://sprites.dev"} "Sprite"] "."])
+    (faq-item
+     "How is it free?"
+     [:p
+      "For now, I am subsidizing this first phase of the experiment. It is free thanks to my generous "
+      [:a {:href "https://github.com/sponsors/kirahowe"} "GitHub Sponsors"]
+      ". If it goes well, I will find a way to make it sustainable, but for now I am happy to fund this initial prototype phase to see if this is even useful. If you would like to see this continue, please try it out and "
+      [:a {:href "mailto:contact@kirahowe.com"} "let me know what you think"]
+      ". You can email me, or find me in the Clojurians "
+      [:a {:href "https://clojurians.zulipchat.com/#user/383513"} "Zulip"]
+      " or "
+      [:a {:href "https://clojurians.slack.com/team/UPGS9BS0L"} "Slack"]
+      ". You can also contribute to the project financially by "
+      [:a {:href "https://github.com/sponsors/kirahowe"} "sponsoring me on GitHub."]])
+    (faq-item
+     "What are the limitations of this?"
+     [:p
+      "This initial demo is limited to 40 users, each getting approximately 50 hours of notebook usage, with up to 10 users active at any one time. These limitations are in place to keep costs in check until I decide what to do with this project, if anything."])
+    (faq-item
+     "Who are you?"
+     [:p
+      "I'm Kira Howe (formerly McLean). I gave a "
+      [:a {:href "https://www.youtube.com/watch?v=MguatDl5u2Q"} "talk about Noj and Clojure's data science stack"]
+      " when it was mostly just a dream back at the conj in 2023. "
+      [:em "So much"]
+      " has happened since then, and I feel like one of the new biggest hurdles to overcome is making Clojure's ecosystem approachable and easy to use. This is one experiment in that direction."])]])
 
 (defn- cta []
   [:section.cta
-   [:p.eyebrow "Start now"]
-   [:h2 "Your first notebook is seconds away."]
-   [:p "Sign in with a passkey or a one-time email code. New here? Signing in creates your account."]
-   [:a.button.button--primary.button--lg {:href "/dashboard"}
+   [:p.eyebrow "Get started"]
+   [:h2 "Your first notebook is waiting."]
+   [:p "Sign in or create an account to get started."]
+   [:a.button.button--primary.button--lg {:href (routes/dashboard)}
     "Create your notebook"]])
 
 (defn render []
@@ -134,12 +166,13 @@
    "Clay notebooks"
    [:div
     (layout/site-header
-     [:a {:href "/dashboard"} "Dashboard"]
-     [:a {:href "/login"} "Sign in"])
+     [:a {:href (routes/dashboard)} "Dashboard"]
+     [:a {:href (routes/login)} "Sign in"])
     [:main
      (hero)
      (preview)
      (features)
+     (faq)
      (cta)]
     (layout/site-footer
      [:a {:href "https://scicloj.github.io/clay/"} "Clay"]

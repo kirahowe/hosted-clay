@@ -87,7 +87,6 @@ p:last-child { margin-bottom: 0; }
   font-size: var(--step-1);
   line-height: 1.5;
   color: var(--fg-muted);
-  max-width: var(--measure-prose);
 }
 
 a {
@@ -115,7 +114,6 @@ strong { font-weight: 600; }
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 1px;
 }
 
 .muted { color: var(--fg-muted); }
@@ -296,6 +294,7 @@ input[type="email"]:focus {
   border-radius: var(--radius);
   padding: var(--space-6);
   background: var(--bg);
+  box-shadow: var(--shadow);
 }
 
 /* Card with a left accent rail — for emphasised content. */
@@ -309,23 +308,6 @@ input[type="email"]:focus {
    guard keeps it honest. */
 .card h3 { margin-top: var(--space-6); }
 .card h3:first-child { margin-top: 0; }
-
-/* ---------- metadata list ---------- */
-
-dl.meta {
-  margin: 0;
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  /* Centre each row so a taller value (e.g. the status badge) stays
-     aligned with its label rather than sitting below it. */
-  align-items: center;
-  column-gap: var(--space-5);
-  row-gap: var(--space-3);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-}
-dl.meta dt { color: var(--fg-muted); }
-dl.meta dd { margin: 0; }
 
 /* ---------- copyable value ---------- */
 
@@ -342,6 +324,7 @@ dl.meta dd { margin: 0; }
   min-width: 0;
   padding: var(--space-2) var(--space-3);
   border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-sm);
   background: var(--bg-raised);
   white-space: nowrap;
   overflow-wrap: normal;
@@ -365,7 +348,6 @@ dl.meta dd { margin: 0; }
 }
 .notice:last-child { margin-bottom: 0; }
 .notice--error { border-left-color: var(--danger); background: var(--danger-bg); }
-.notice--success { border-left-color: var(--success); background: var(--success-bg); }
 
 /* A POST rendered as a single inline button: the wrapping <form> shouldn't add
    a box or break the surrounding flex row (e.g. .actions, the workspace bar). */
@@ -428,9 +410,10 @@ main li { margin-bottom: var(--space-2); }
 
 /* Margin-based container — the hero uses explicit margins, not gap, so
    it can mix the display heading with a lead and CTA row that each
-   need their own rhythm. */
+   need their own rhythm. No top padding: main's top padding is the
+   only air above the headline, so the page opens flush under the nav. */
 .hero {
-  padding: var(--space-8) 0 var(--space-7);
+  padding: 0 0 var(--space-7);
   border-bottom: var(--hairline) solid var(--border);
 }
 /* The hero carries its own bottom padding and a border — the default
@@ -442,13 +425,14 @@ main > section.hero { margin-bottom: 0; }
 
 /* ---------- dashboard page header ---------- */
 
-/* The dashboard's page-header rhymes with the hero: the same top air, so the
-   two pages open with the same posture. The h1 stays at step-4 (not the
-   hero's display size) — an app page shouldn't shout as loud as the landing
-   page. No closing hairline — the notebook card below already provides a
-   visual boundary, so a rule here would just be clutter. */
+/* The dashboard's page-header rhymes with the hero: the same posture, no
+   top padding of its own (main's top padding carries the air above the
+   headline). The h1 stays at step-4 (not the hero's display size) — an app
+   page shouldn't shout as loud as the landing page. No closing hairline —
+   the notebook card below already provides a visual boundary, so a rule
+   here would just be clutter. */
 .dash-head {
-  padding: var(--space-8) 0 var(--space-7);
+  padding: 0 0 var(--space-7);
 }
 main > section.dash-head { margin-bottom: var(--space-8); }
 .dash-head .eyebrow { margin-bottom: var(--space-3); }
@@ -466,6 +450,7 @@ main > section.dash-head { margin-bottom: var(--space-8); }
 .feature {
   padding: var(--space-5);
   border: var(--hairline) solid var(--border);
+  border-radius: var(--radius);
   background: var(--bg-raised);
   display: flex;
   flex-direction: column;
@@ -481,54 +466,40 @@ main > section.dash-head { margin-bottom: var(--space-8); }
 .feature h3 { font-size: var(--step-1); }
 .feature p { color: var(--fg-muted); font-size: var(--step--1); line-height: 1.5; }
 
-/* ---------- code preview ---------- */
+/* ---------- FAQ ---------- */
 
+/* Permanently-open Q&A rows, hairline-divided. The same width as the rest
+   of the page — no narrower measure — so the questions line up with the
+   sections above and below. Margin-based: each row carries its own border. */
+.faq { border-top: var(--hairline) solid var(--border); }
+.faq-item {
+  border-bottom: var(--hairline) solid var(--border);
+  padding: var(--space-5) 0;
+}
+.faq-question {
+  font-size: var(--step-1);
+  font-weight: 600;
+  letter-spacing: -0.014em;
+  margin: 0 0 var(--space-3);
+  color: var(--fg);
+}
+.faq-answer p { color: var(--fg-muted); }
+
+/* ---------- notebook preview ---------- */
+
+/* A framed screenshot of a fresh notebook. The image already carries its
+   own header bar, so the frame is just a hairline border around it. */
 .preview {
   border: var(--hairline) solid var(--border);
+  border-radius: var(--radius);
   background: var(--bg-sunken);
   overflow: hidden;
+  box-shadow: var(--shadow);
 }
-.preview-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-bottom: var(--hairline) solid var(--border);
-  background: var(--bg-raised);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  color: var(--fg-muted);
-}
-.preview-dot {
-  width: var(--space-2);
-  height: var(--space-2);
-  border-radius: 50%;
-  border: var(--hairline) solid var(--border-strong);
-  background: transparent;
-}
-.preview-body {
-  padding: var(--space-5) var(--space-6);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  line-height: 1.7;
-  overflow-x: auto;
-}
-.preview-body .c-kw { color: var(--accent); }
-.preview-body .c-str { color: var(--success); }
-.preview-body .c-com { color: var(--fg-subtle); font-style: italic; }
-.preview-body .c-fn { color: var(--fg); font-weight: 500; }
-.preview-body pre { margin: 0; }
-
-/* ---------- split layout ---------- */
-
-.split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-6);
-  align-items: center;
-}
-@media (max-width: 820px) {
-  .split { grid-template-columns: 1fr; gap: var(--space-5); }
+.preview-img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 /* ---------- CTA band ---------- */
@@ -537,6 +508,7 @@ main > section.dash-head { margin-bottom: var(--space-8); }
 .cta {
   padding: var(--space-8) var(--space-6);
   border: var(--hairline) solid var(--border);
+  border-radius: var(--radius);
   background: var(--bg-raised);
   text-align: center;
   display: flex;
@@ -545,7 +517,7 @@ main > section.dash-head { margin-bottom: var(--space-8); }
   gap: var(--space-4);
 }
 .cta > * { margin: 0; }
-.cta p { color: var(--fg-muted); max-width: var(--measure-prose); }
+.cta p { color: var(--fg-muted); }
 
 /* ---------- section heading ---------- */
 
@@ -554,7 +526,7 @@ main > section.dash-head { margin-bottom: var(--space-8); }
 .section-head { margin-bottom: var(--space-6); }
 .section-head .eyebrow { margin-bottom: var(--space-2); }
 .section-head h2 { margin: 0 0 var(--space-2); }
-.section-head p { margin: 0; color: var(--fg-muted); max-width: var(--measure-prose); }
+.section-head p { margin: 0; color: var(--fg-muted); }
 
 /* ---------- footer ---------- */
 
@@ -613,6 +585,7 @@ hanko-auth {
   height: var(--space-2);
   background: var(--bg-sunken);
   border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-sm);
   margin-bottom: var(--space-4);
   overflow: hidden;
 }
@@ -708,9 +681,15 @@ pre.source {
 
 @media (max-width: 640px) {
   header.site { padding: var(--space-4) var(--space-4); }
-  main { padding: var(--space-7) var(--space-4); }
+  /* main's top padding stacks with the page header's, so trim it here too —
+     otherwise the two together open a wide gap below the nav on small screens. */
+  main { padding: var(--space-4) var(--space-4) var(--space-7); }
   footer.site { padding: var(--space-6) var(--space-4) var(--space-5); }
-  .hero { padding: var(--space-7) 0 var(--space-6); }
+  /* The site header already sits a step below the nav; on small screens the
+     page header's full top air is just dead space, so drop the top padding
+     here too — main's trimmed top padding is all the air above the headline. */
+  .hero { padding: 0 0 var(--space-6); }
+  .dash-head { padding: 0 0 var(--space-6); }
   .cta { padding: var(--space-7) var(--space-4); }
   .card { padding: var(--space-5); }
 }
