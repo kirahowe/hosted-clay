@@ -115,10 +115,10 @@
   [:section.notebook__section.notebook__danger
    (section-head "Danger zone" "Delete notebook")
    [:form {:method "post" :action (routes/notebook-delete id)
-           :onsubmit "return confirm('Delete this notebook and its environment? This cannot be undone.')"}
+           :data-confirm "Delete this notebook and its environment? This cannot be undone."}
     [:button.button--danger {:type "submit"} "Delete notebook"]]
    [:p.hint
-    "This deletes the notebook and everything in its environment. Idle for 30 "
+    "This deletes the notebook and everything in its environment. Idle for 50 "
     "days, a notebook is deleted automatically — we email a warning first."]])
 
 (defn- ready-body [notebook share-url limit-hours awake-seconds]
@@ -150,7 +150,7 @@
      [:div.actions
       [:a.button.button--primary {:href (routes/notebook id)} "Open notebook"]
       [:form.inline-form {:method "post" :action (routes/notebook-delete id)
-                          :onsubmit "return confirm('Delete this notebook? This cannot be undone.')"}
+                          :data-confirm "Delete this notebook? This cannot be undone."}
        [:button.button--danger {:type "submit"} "Delete"]]])))
 
 (defn- notebook-card [notebook base-url limit-hours awake-seconds]

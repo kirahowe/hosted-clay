@@ -59,3 +59,46 @@
                           {:last-accessed-at (str (.minus (Instant/now) (Duration/ofDays 31)))})
             (lifecycle/sweep! ds client email opts)
             (is (nil? (notebooks/by-id ds (:notebooks/id nb))))))))))
+
+(deftest log-only-email-never-marks-warned-or-deletes
+  ;; The prod failsafe: with no RESEND_API_KEY the email component returns
+  ;; falsey (nothing was delivered), so warned-at must never be set — and
+  ;; since deletion requires warned-at, an idle notebook survives
+  ;; indefinitely rather than being deleted unannounced.
+  (ts/with-db
+    (fn [ds]
+      (with-redefs [sprites/create-sprite! (fn [_ name] {:url (str "https://" name ".sprites.test")})
+                    sprites/delete-sprite! (fn [_ _])
+                    provision/provision!   (fn [_ _])]
+        (let [user     (users/provision! ds {:provider "hanko" :provider-subject "s"
+                                             :email "kira@example.com"})
+              nb       (notebooks/create! ds client {:max-sprites 10} (:users/id user) "T")
+              log-only (constantly false)
+              opts     {:warn-after-days 23 :delete-after-days 30 :base-url "https://clay.test"}]
+          (crud/update! ds :notebooks (:notebooks/id nb)
+                        {:last-accessed-at (str (.minus (Instant/now) (Duration/ofDays 99)))})
+          (lifecycle/sweep! ds client log-only opts)
+          (is (nil? (:notebooks/warned-at (notebooks/by-id ds (:notebooks/id nb))))
+              "an undelivered warning leaves the notebook un-warned")
+          (lifecycle/sweep! ds client log-only opts)
+          (is (some? (notebooks/by-id ds (:notebooks/id nb)))
+              "and an un-warned notebook is never deleted, however idle"))))))
+
+(deftest nil-thresholds-disable-the-policy
+  (ts/with-db
+    (fn [ds]
+      (with-redefs [sprites/create-sprite! (fn [_ name] {:url (str "https://" name ".sprites.test")})
+                    sprites/delete-sprite! (fn [_ _])
+                    provision/provision!   (fn [_ _])]
+        (let [user (users/provision! ds {:provider "hanko" :provider-subject "s"
+                                         :email "kira@example.com"})
+              nb   (notebooks/create! ds client {:max-sprites 10} (:users/id user) "T")
+              sent (atom [])]
+          (crud/update! ds :notebooks (:notebooks/id nb)
+                        {:last-accessed-at (str (.minus (Instant/now) (Duration/ofDays 99)))
+                         :warned-at        (crud/now)})
+          (lifecycle/sweep! ds client #(swap! sent conj %)
+                            {:warn-after-days nil :delete-after-days nil :base-url "https://clay.test"})
+          (is (empty? @sent) "nil warn threshold sends nothing")
+          (is (some? (notebooks/by-id ds (:notebooks/id nb)))
+              "nil delete threshold deletes nothing"))))))

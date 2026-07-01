@@ -21,10 +21,17 @@
     (is (= "Body" (get body "text")))))
 
 (deftest log-only-without-api-key
-  (testing "with no api key the sender logs and never throws"
+  (testing "with no api key the sender logs, never throws, and returns falsey
+            so callers know nothing was delivered (and never mark warned)"
     (let [send (ig/init-key :hosted-clay/email {:from "Clay <c@example.com>"})]
       (is (fn? send))
-      (is (nil? (send {:to "a@b.com" :subject "s" :text "t"}))))))
+      (is (not (send {:to "a@b.com" :subject "s" :text "t"}))))))
+
+(deftest resend-success-returns-truthy
+  (testing "a 2xx response returns truthy so the caller records the warning"
+    (with-redefs [http/request (fn [_] (delay {:status 200 :body "{\"id\":\"1\"}"}))]
+      (let [send (ig/init-key :hosted-clay/email {:api-key {:value "k"} :from "f"})]
+        (is (send {:to "a@b.com" :subject "s" :text "t"}))))))
 
 (deftest resend-failure-throws
   (testing "a non-2xx response throws so the caller can retry instead of marking warned"
