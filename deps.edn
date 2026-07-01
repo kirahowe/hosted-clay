@@ -19,9 +19,12 @@
 
  :aliases
  {:dev    {:extra-paths ["env/dev/src" "env/dev/resources"]
-           :extra-deps  {integrant/repl    {:mvn/version "0.5.1"}
-                         nrepl/nrepl       {:mvn/version "1.4.0"}
-                         cider/cider-nrepl {:mvn/version "0.59.0"}}
+           :extra-deps  {integrant/repl     {:mvn/version "0.5.1"}
+                         nrepl/nrepl        {:mvn/version "1.4.0"}
+                         cider/cider-nrepl  {:mvn/version "0.59.0"}
+                         org.scicloj/noj    {:mvn/version "2-beta24"}
+                         org.scicloj/clay   {:mvn/version "2.0.16"}
+                         org.scicloj/plotje {:mvn/version "0.3.1"}}
            ;; Boots the dev system AND a cider-nrepl, advertising
            ;; .nrepl-port (see hosted-clay.dev.main) so `bb dev`, `bb
            ;; repl`, and an editor jack-in all converge on one JVM.

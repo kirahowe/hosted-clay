@@ -1,6 +1,7 @@
 target/
 .cpcache/
 .clj-kondo/.cache/
+.clj-kondo/imports/
 # The global gitignore ignores all of .clj-kondo; the lint config (charm.clj
 # namespace exclusions for the admin TUI) must be tracked, so un-ignore it.
 !.clj-kondo/
@@ -17,3 +18,5 @@ target/
 .env
 .env.local
 .DS_Store
+
+docs/
