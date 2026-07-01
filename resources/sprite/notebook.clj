@@ -53,11 +53,11 @@
 
 ;; Conceptually, you can think of a tablecloth dataset as a map of column names to values in that column. We can access a column the same way we'd access a value from any other map:
 
-(:petal-length iris-ds-ds)
+(:petal-length iris-ds)
 
 ;; You'll notice that the tablecloth column is a specialized type, but we can still treat it like plain data using the entire Clojure standard library:
 
-(take 15 (sort (:petal-length iris-ds-ds)))
+(take 15 (sort (:petal-length iris-ds)))
 
 ;; The specialized type (in this case a tablecloth column) is there as an optimization to make column-wise operations efficient, but it does not add friction if you just want to access your data like you would any other Clojure data structure.
 
