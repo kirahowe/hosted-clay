@@ -44,7 +44,7 @@
   if (prov) {
     var id = prov.getAttribute("data-provision");
     var poll = function () {
-      fetch("/notebooks/" + id + "/status", { cache: "no-store" })
+      fetch("/n/" + id + "/status", { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) {
           if (data && data.status !== "provisioning") { window.location.reload(); return; }

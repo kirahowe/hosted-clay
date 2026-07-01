@@ -79,7 +79,7 @@
 
 (defn- fix-clay-reload
   "Clay's live-reload page is written for a direct `localhost:<clay-port>`
-   origin; served through our `/n/:id/` prefix several of its URLs point
+   origin; served through our `/n/:id/view/` prefix several of its URLs point
    at the wrong place. Rewrite them to be same-origin / prefix-relative so
    they reach the sprite's Clay through our proxy:
 

@@ -23,7 +23,7 @@
 
   (testing "the /counter staleness poll is made prefix-relative"
     ;; root-absolute /counter resolves to the control-plane root through
-    ;; our /n/:id/ prefix -> 404 -> empty body -> JSON.parse throws.
+    ;; our /n/:id/view/ prefix -> 404 -> empty body -> JSON.parse throws.
     (let [html "<script>const r = await fetch('/counter'); r.json();</script>"
           out  (fix-clay-reload html)]
       (is (str/includes? out "fetch('counter')"))

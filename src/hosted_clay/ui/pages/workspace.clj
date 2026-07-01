@@ -5,26 +5,23 @@
    editor re-renders the output via Clay's live-reload. While a notebook's
    sprite is still provisioning (or if it failed) this same route shows a
    status page instead."
-  (:require [hosted-clay.ui.layout :as layout]))
+  (:require [hosted-clay.routes :as routes]
+            [hosted-clay.ui.layout :as layout]))
 
 (defn render [notebook base-url]
   (let [id         (:notebooks/id notebook)
         title      (:notebooks/title notebook)
-        ;; `?folder` pins the workspace from the browser side — code-server
-        ;; resolves the folder as query-param > CLI arg > last-opened, so the
-        ;; editor reliably opens the notebook folder (and Calva sees the
-        ;; project) regardless of any stale persisted state.
-        editor-src (str "/n/" id "/edit/?folder=/home/sprite/notebook")
-        share-url  (str base-url "/s/" (:notebooks/share-token notebook) "/")]
+        editor-src (routes/editor id)
+        share-url  (routes/absolute base-url (routes/share id))]
     (layout/page
      title
      [:div.workspace {:data-notebook-id id}
       [:header.workspace-bar
-       [:a.workspace-home {:href "/dashboard"} "← Dashboard"]
+       [:a.workspace-home {:href (routes/dashboard)} "← Dashboard"]
        [:span.workspace-title title]
        [:nav.workspace-actions
-        [:form.inline-form {:method "post" :action (str "/notebooks/" id "/suspend")}
-         [:input {:type "hidden" :name "return" :value (str "/notebooks/" id)}]
+        [:form.inline-form {:method "post" :action (routes/notebook-suspend id)}
+         [:input {:type "hidden" :name "return" :value (routes/notebook id)}]
          [:button.workspace-action
           {:type "submit"
            :title "Suspend the notebook so its sprite sleeps and stops billing"}
@@ -40,14 +37,14 @@
         [:div.editor-loading {:data-editor-loading true}
          [:div.status-card
           [:div.spinner {:role "status" :aria-label "Starting the editor"}]
-          [:p.muted "Starting the editor — opening your notebook and "
-           "connecting the REPL. This takes a few seconds."]]]
+          [:p.muted "Starting the editor, opening your notebook, and "
+           "connecting the REPL. This can take a few seconds."]]]
         [:iframe {:src   editor-src
                   :title "Editor"
                   :allow "clipboard-read; clipboard-write"}]]
        [:div.workspace-divider {:role "separator" :aria-orientation "vertical"}]
        [:section.workspace-pane.workspace-output
-        [:iframe {:src   (str "/n/" id "/")
+        [:iframe {:src   (routes/notebook-view id)
                   :title "Rendered output"}]]]
       [:script {:src "/static/js/workspace.js"}]]
      {:head       [:link {:rel "stylesheet" :href "/static/css/workspace.css"}]
@@ -62,20 +59,19 @@
     (layout/page
      (str title " — source")
      [:div
-      (layout/site-header [:a {:href "/dashboard"} "← Dashboard"])
+      (layout/site-header [:a {:href (routes/dashboard)} "← Dashboard"])
       [:main
        [:p.eyebrow "Source"]
        [:h1 title]
        (if source
          (list
           [:p.lead
-           "Your most recently saved notebook source, served from a snapshot — "
-           "so you can copy it anywhere, even while the notebook is paused."]
+           "Your most recently saved notebook source code, available even while the notebook is paused."]
           [:div.actions
            [:button.button.copy {:type "button" :data-copy source} "Copy source"]]
           [:pre.source [:code source]])
          [:p.lead
-          "We haven't captured a snapshot of this notebook yet — snapshots are "
+          "We haven't captured a snapshot of this notebook yet. Snapshots are "
           "taken while it's awake, so check back in a few minutes."])]])))
 
 (defn- status-page
@@ -86,7 +82,7 @@
   [notebook suffix opts]
   (layout/status-page
    (merge {:title (str (:notebooks/title notebook) suffix)
-           :nav   [[:a {:href "/dashboard"} "← Dashboard"]]}
+           :nav   [[:a {:href (routes/dashboard)} "← Dashboard"]]}
           opts)))
 
 (defn render-provisioning [notebook]
@@ -108,10 +104,10 @@
    {:eyebrow "Monthly limit reached"
     :heading "This notebook is paused for the month"
     :lead    (str "It's used its " limit-hours " active hours for this month, so "
-                  "it's paused to keep costs in check. Your work is saved — it'll "
-                  "be available again at the start of next month.")
-    :actions [[:a.button.button--primary {:href "/dashboard"} "← Back to dashboard"]
-              [:a.button {:href (str "/notebooks/" (:notebooks/id notebook) "/source")}
+                  "it's paused for now. Your work is saved and is available as read-only."
+                  "Your hourly limit resets at the beginning of next month.")
+    :actions [[:a.button.button--primary {:href (routes/dashboard)} "← Back to dashboard"]
+              [:a.button {:href (routes/notebook-source (:notebooks/id notebook))}
                "View source"]]}))
 
 (defn render-suspended
@@ -124,13 +120,12 @@
      notebook " — suspended"
      {:eyebrow "Suspended"
       :heading "This notebook is suspended"
-      :lead    (str "You suspended it, so its sprite is asleep and not billing. "
-                    "Resume to pick up right where you left off — your work and "
-                    "running session are saved.")
-      :actions [[:form.inline-form {:method "post" :action (str "/notebooks/" id "/resume")}
-                 [:input {:type "hidden" :name "return" :value (str "/notebooks/" id)}]
+      :lead    (str "Suspended notebooks do not count toward your monthly usage. "
+                    "Your work and running session are saved, you can resume to pick up right where you left off.")
+      :actions [[:form.inline-form {:method "post" :action (routes/notebook-resume id)}
+                 [:input {:type "hidden" :name "return" :value (routes/notebook id)}]
                  [:button.button--primary {:type "submit"} "Resume notebook"]]
-                [:a.button {:href "/dashboard"} "← Back to dashboard"]]})))
+                [:a.button {:href (routes/dashboard)} "← Back to dashboard"]]})))
 
 (defn render-failed [notebook]
   (let [id (:notebooks/id notebook)]
@@ -139,10 +134,10 @@
      {:eyebrow "Setup failed"
       :heading "Setup didn't finish"
       :lead    (str "Something went wrong while building your environment. You can "
-                    "try again, or delete it and start over.")
-      :actions [[:form.inline-form {:method "post" :action (str "/notebooks/" id "/retry")
+                    "try again, or delete this notebook and start over and start over.")
+      :actions [[:form.inline-form {:method "post" :action (routes/notebook-retry id)
                                     :data-submit-label "Retrying…"}
                  [:button.button--primary {:type "submit"} "Try again"]]
-                [:form.inline-form {:method "post" :action (str "/notebooks/" id "/delete")
+                [:form.inline-form {:method "post" :action (routes/notebook-delete id)
                                     :onsubmit "return confirm('Delete this notebook? This cannot be undone.')"}
                  [:button.button--danger {:type "submit"} "Delete"]]]})))

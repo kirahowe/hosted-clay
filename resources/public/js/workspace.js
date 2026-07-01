@@ -33,7 +33,7 @@
 
 // Restart: bounce the notebook environment when Clay/the REPL stops
 // responding. POSTs the restart (the server restarts the notebook AND
-// code-server services and returns promptly), then polls /n/:id/counter —
+// code-server services and returns promptly), then polls /n/:id/view/counter —
 // Clay's lightweight liveness endpoint, which 502s while dead and 200s once
 // it's serving — until it's back, and reloads both panes. The editor pane
 // reloads too because code-server was restarted (to reconnect Calva to the
@@ -55,7 +55,7 @@
     var deadline = start + timeoutMs;
     return (function poll() {
       if (onTick) onTick(Math.round((Date.now() - start) / 1000));
-      return fetch("/n/" + id + "/counter", { cache: "no-store" })
+      return fetch("/n/" + id + "/view/counter", { cache: "no-store" })
         .then(function (r) { return r.ok; }, function () { return false; })
         .then(function (up) {
           if (up) return true;
@@ -77,7 +77,7 @@
     button.disabled = true;
     button.textContent = "Restarting…";
 
-    fetch("/notebooks/" + id + "/restart", { method: "POST" })
+    fetch("/n/" + id + "/restart", { method: "POST" })
       .then(function (r) {
         if (!r.ok) throw new Error("restart request failed");
         return waitForClay(90000, function (secs) {
@@ -106,7 +106,7 @@
 // seconds later — until then the editor is up but "open" eval does nothing.
 // The notebook JVM writes a readiness marker the moment Calva connects (its
 // autoEvaluateCode.onConnect eval, served by Caddy at /repl-ready — see
-// resources/sprite/setup.sh). Poll that marker through the owner proxy and
+// resources/sprite/setup.sh). Poll that marker through the owner output proxy and
 // keep the "starting" overlay up until it appears, so the editor is revealed
 // only once it's actually usable. Click-to-dismiss and a hard cap remain so a
 // missed signal can never strand the overlay.
@@ -127,7 +127,7 @@
   }
 
   poll = setInterval(function () {
-    fetch("/n/" + id + "/repl-ready", { cache: "no-store" })
+    fetch("/n/" + id + "/view/repl-ready", { cache: "no-store" })
       .then(function (r) { if (r.ok) hide(); })
       .catch(function () {});
   }, 1000);

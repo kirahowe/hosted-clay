@@ -7,6 +7,7 @@
    methods with 401."
   (:require [integrant.core :as ig]
             [hosted-clay.auth :as auth]
+            [hosted-clay.routes :as routes]
             [hosted-clay.users :as users]
             [hosted-clay.web.response :as response]))
 
@@ -24,7 +25,7 @@
   ;; HEAD is a safe browser/crawler method that should mirror GET, so it
   ;; gets the same /login redirect; other methods (POST etc.) get a 401.
   (if (contains? #{:get :head} (:request-method req))
-    (response/see-other "/login")
+    (response/see-other (routes/login))
     {:status 401 :headers {"content-type" "text/plain"} :body "unauthenticated"}))
 
 (defn wrap-auth [handler {:keys [jwks-url datasource]}]

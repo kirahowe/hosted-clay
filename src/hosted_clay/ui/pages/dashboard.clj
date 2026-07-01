@@ -1,9 +1,10 @@
 (ns hosted-clay.ui.pages.dashboard
-  (:require [hosted-clay.ui.layout :as layout]))
+  (:require [hosted-clay.routes :as routes]
+            [hosted-clay.ui.layout :as layout]))
 
 (defn- header []
   (layout/site-header
-   [:form {:method "post" :action "/logout"}
+   [:form {:method "post" :action (routes/logout)}
     [:button {:type "submit"} "Sign out"]]))
 
 (defn- day
@@ -35,10 +36,10 @@
      (status-readout notebook)
      [:div.notebook__actions
       [:a.button {:class (when-not suspended "button--primary")
-                  :href  (str "/notebooks/" id)} "Open notebook"]
+                  :href  (routes/notebook id)} "Open notebook"]
       [:form.inline-form {:method "post"
-                          :action (str "/notebooks/" id "/" (if suspended "resume" "suspend"))}
-       [:input {:type "hidden" :name "return" :value "/dashboard"}]
+                          :action (if suspended (routes/notebook-resume id) (routes/notebook-suspend id))}
+       [:input {:type "hidden" :name "return" :value (routes/dashboard)}]
        [:button {:type "submit" :class (when suspended "button--primary")}
         (if suspended "Resume" "Suspend")]]]]))
 
@@ -107,13 +108,13 @@
    [:p.hint
     "Anyone with the link sees the rendered notebook — no account needed. "
     "Just need the code? "
-    [:a {:href (str "/notebooks/" id "/source")} "View the raw source"]
+    [:a {:href (routes/notebook-source id)} "View the raw source"]
     " (works even while it's paused)."]])
 
 (defn- danger-footer [id]
   [:section.notebook__section.notebook__danger
    (section-head "Danger zone" "Delete notebook")
-   [:form {:method "post" :action (str "/notebooks/" id "/delete")
+   [:form {:method "post" :action (routes/notebook-delete id)
            :onsubmit "return confirm('Delete this notebook and its environment? This cannot be undone.')"}
     [:button.button--danger {:type "submit"} "Delete notebook"]]
    [:p.hint
@@ -139,7 +140,7 @@
     [:span.spinner {:role "status" :aria-label "Setting up"}]
     "Setting up your environment — this can take a minute."]
    [:div.actions
-    [:a.button.button--primary {:href (str "/notebooks/" (:notebooks/id notebook))} "View progress"]]))
+    [:a.button.button--primary {:href (routes/notebook (:notebooks/id notebook))} "View progress"]]))
 
 (defn- failed-body [notebook]
   (let [id (:notebooks/id notebook)]
@@ -147,14 +148,14 @@
      [:div.notebook__bar (status-readout notebook)]
      [:p.notice.notice--error "Setup didn't finish. Open it to try again, or delete it and start over."]
      [:div.actions
-      [:a.button.button--primary {:href (str "/notebooks/" id)} "Open notebook"]
-      [:form.inline-form {:method "post" :action (str "/notebooks/" id "/delete")
+      [:a.button.button--primary {:href (routes/notebook id)} "Open notebook"]
+      [:form.inline-form {:method "post" :action (routes/notebook-delete id)
                           :onsubmit "return confirm('Delete this notebook? This cannot be undone.')"}
        [:button.button--danger {:type "submit"} "Delete"]]])))
 
 (defn- notebook-card [notebook base-url limit-hours awake-seconds]
   (let [status    (:notebooks/status notebook)
-        share-url (str base-url "/s/" (:notebooks/share-token notebook) "/")]
+        share-url (routes/absolute base-url (routes/share (:notebooks/id notebook)))]
     [:section.card.notebook
      (case status
        "ready"  (ready-body notebook share-url limit-hours awake-seconds)
@@ -166,8 +167,8 @@
    (section-head "Start here" "Create your notebook")
    [:p.lead
     "You get one free notebook: a private Linux machine with Clay, "
-    "Noj, and a browser editor, ready in seconds."]
-   [:form {:method "post" :action "/notebooks" :data-submit-label "Creating…"}
+    "Noj, and a browser editor, ready to go."]
+   [:form {:method "post" :action (routes/notebooks) :data-submit-label "Creating…"}
     [:div.field
      [:label {:for "title"} "Name"]
      [:input {:type "text" :id "title" :name "title"
@@ -175,7 +176,7 @@
     [:button.button--primary {:type "submit"} "Create notebook"]]
    [:p.hint
     "If no pre-warmed environment is free, creating one takes a couple of "
-    "minutes while it's built — we'll show progress."]])
+    "minutes while it's built — we'll show progress as it goes."]])
 
 (defn- page-header [user notebook]
   [:section.dash-head

@@ -1,15 +1,17 @@
 (ns hosted-clay.handlers.share
-  "The public read-only view: /s/:token/*. Once a notebook has a rendered
-   snapshot, this serves that static HTML straight from the control plane — no
-   sprite contact, so it costs nothing and works even while the notebook is
-   paused for the month. Until the first snapshot lands (a brand-new notebook),
-   it falls back to proxying the live Clay-rendered notebook. Reads only — non-GET
-   methods are refused — and the editor is unreachable: /edit/* (and so
-   code-server, WebSockets included) never leaves this handler."
+  "The public read-only view: /s/:id/*, keyed on the notebook id (a random UUID,
+   so unguessable). Once a notebook has a rendered snapshot, this serves that
+   static HTML straight from the control plane — no sprite contact, so it costs
+   nothing and works even while the notebook is paused for the month. Until the
+   first snapshot lands (a brand-new notebook), it falls back to proxying the
+   live Clay-rendered notebook. Reads only — non-GET methods are refused — and
+   the editor is unreachable: /edit/* (and so code-server, WebSockets included)
+   never leaves this handler."
   (:require [clojure.string :as str]
             [integrant.core :as ig]
             [hosted-clay.notebooks :as notebooks]
             [hosted-clay.proxy :as proxy]
+            [hosted-clay.routes :as routes]
             [hosted-clay.snapshot :as snapshot]
             [hosted-clay.usage :as usage]
             [hosted-clay.web.response :as response]))
@@ -36,7 +38,7 @@
 (defmethod ig/init-key :hosted-clay.handlers/share
   [_ {:keys [datasource sprites-client usage-limit-hours]}]
   (fn [req]
-    (let [notebook (notebooks/by-share-token datasource (get-in req [:path-params :token]))
+    (let [notebook (notebooks/by-id datasource (get-in req [:path-params :id]))
           path     (get-in req [:path-params :path])
           html     (when notebook
                      (:notebook-snapshots/html
@@ -77,4 +79,4 @@
 
 (defmethod ig/init-key :hosted-clay.handlers/share-root [_ _]
   (fn [req]
-    (response/see-other (str "/s/" (get-in req [:path-params :token]) "/"))))
+    (response/see-other (routes/share (get-in req [:path-params :id])))))

@@ -44,8 +44,6 @@
          (let [user (make-user ds)
                nb   (notebooks/create! ds client limits (:users/id user) "My notebook")]
            (is (= "My notebook" (:notebooks/title nb)))
-           (is (seq (:notebooks/share-token nb)))
-           (is (= nb (notebooks/by-share-token ds (:notebooks/share-token nb))))
 
            (testing "second create reports the existing notebook"
              (is (= ::notebooks/already-exists
@@ -174,7 +172,7 @@
       (is (= "nb-1" (:sprite-name (pool/claim! ds))))
       (is (nil? (pool/claim! ds))))))
 
-(deftest open-proxy-blocks-over-limit-notebook
+(deftest view-proxy-blocks-over-limit-notebook
   ;; The whole point of the usage budget: an over-limit notebook's proxy refuses
   ;; to forward, so no request reaches (or wakes) the sprite. Stub the forward
   ;; and touch! seams so we can assert they're skipped, not exercised.
@@ -187,7 +185,7 @@
                id        (:notebooks/id nb)
                forwarded (atom 0)
                touched   (atom 0)
-               handler   (ig/init-key :hosted-clay.handlers.notebooks/open
+               handler   (ig/init-key :hosted-clay.handlers.notebooks/view
                                       {:datasource ds :sprites-client client :usage-limit-hours 50})
                req       {:user-id     (:users/id user)
                           :path-params {:id id :path ""}
@@ -285,7 +283,7 @@
              (doseq [bad ["//evil.example.com" "/\\evil.example.com" "/ spaced"]]
                (notebooks/suspend! ds (nb-now))
                (let [resp (resume (req (:users/id user) bad))]
-                 (is (= (str "/notebooks/" id) (get-in resp [:headers "location"])) (str "rejected: " bad))
+                 (is (= (str "/n/" id) (get-in resp [:headers "location"])) (str "rejected: " bad))
                  (is (not (notebooks/suspended? (nb-now)))))))
            (testing "a non-owner gets a 404 and can't toggle the flag"
              (notebooks/suspend! ds (nb-now))
@@ -302,7 +300,7 @@
                nb        (notebooks/create! ds client limits (:users/id user) "T")
                id        (:notebooks/id nb)
                forwarded (atom 0)
-               open      (ig/init-key :hosted-clay.handlers.notebooks/open
+               view      (ig/init-key :hosted-clay.handlers.notebooks/view
                                       {:datasource ds :sprites-client client :usage-limit-hours 50})
                workspace (ig/init-key :hosted-clay.handlers.notebooks/workspace
                                       {:datasource ds :base-url "https://clay.test" :usage-limit-hours 50})]
@@ -310,7 +308,7 @@
            (notebooks/suspend! ds (notebooks/by-id ds id))
            (with-redefs [proxy/forward (fn [& _] (swap! forwarded inc) {:status 200})]
              (testing "the proxy refuses with 503 and never forwards"
-               (let [resp (open {:user-id (:users/id user) :path-params {:id id :path ""}
+               (let [resp (view {:user-id (:users/id user) :path-params {:id id :path ""}
                                  :headers {"accept" "text/html"}})]
                  (is (= 503 (:status resp)))
                  (is (zero? @forwarded))))

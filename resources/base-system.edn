@@ -44,21 +44,26 @@
    ["/static/*"             {:public? true :handler #ig/ref :hosted-clay.handlers/static}]
    ["/favicon.ico"          {:public? true :get {:handler #ig/ref :hosted-clay.handlers/favicon}}]
    ["/dashboard"            {:get  {:handler #ig/ref :hosted-clay.handlers/dashboard}}]
-   ["/notebooks"            {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/create}}]
-   ["/notebooks/:id"        {:get  {:handler #ig/ref :hosted-clay.handlers.notebooks/workspace}}]
-   ["/notebooks/:id/status"  {:get  {:handler #ig/ref :hosted-clay.handlers.notebooks/status}}]
-   ["/notebooks/:id/delete"  {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/delete}}]
-   ["/notebooks/:id/restart" {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/restart}}]
-   ["/notebooks/:id/retry"   {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/retry}}]
-   ["/notebooks/:id/suspend" {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/suspend}}]
-   ["/notebooks/:id/resume"  {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/resume}}]
-   ["/notebooks/:id/source"  {:get  {:handler #ig/ref :hosted-clay.handlers.notebooks/source}}]
-   ;; The owner proxy takes every method (and WebSocket upgrades); the
-   ;; share proxy is read-only and enforces that itself.
-   ["/n/:id"                {:get {:handler #ig/ref :hosted-clay.handlers.notebooks/open-root}}]
-   ["/n/:id/{*path}"        {:handler #ig/ref :hosted-clay.handlers.notebooks/open}]
-   ["/s/:token"             {:public? true :get {:handler #ig/ref :hosted-clay.handlers/share-root}}]
-   ["/s/:token/{*path}"     {:public? true :handler #ig/ref :hosted-clay.handlers/share}]]}
+   ;; A notebook lives under /n/:id: the workspace page, its control actions,
+   ;; and — nested at /n/:id/view/* so it doesn't collide with those actions —
+   ;; the owner proxy into the sprite's live Clay output. The editor is its own
+   ;; prefix, /e/:id/*; the public read-only view is /s/:id/*.
+   ["/n"                    {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/create}}]
+   ["/n/:id"                {:get  {:handler #ig/ref :hosted-clay.handlers.notebooks/workspace}}]
+   ["/n/:id/status"         {:get  {:handler #ig/ref :hosted-clay.handlers.notebooks/status}}]
+   ["/n/:id/delete"         {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/delete}}]
+   ["/n/:id/restart"        {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/restart}}]
+   ["/n/:id/retry"          {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/retry}}]
+   ["/n/:id/suspend"        {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/suspend}}]
+   ["/n/:id/resume"         {:post {:handler #ig/ref :hosted-clay.handlers.notebooks/resume}}]
+   ["/n/:id/source"         {:get  {:handler #ig/ref :hosted-clay.handlers.notebooks/source}}]
+   ;; The owner proxies (output + editor) take every method and WebSocket
+   ;; upgrades; the share proxy is read-only and enforces that itself.
+   ["/n/:id/view/{*path}"   {:handler #ig/ref :hosted-clay.handlers.notebooks/view}]
+   ["/e/:id"                {:get {:handler #ig/ref :hosted-clay.handlers.notebooks/edit-root}}]
+   ["/e/:id/{*path}"        {:handler #ig/ref :hosted-clay.handlers.notebooks/edit}]
+   ["/s/:id"                {:public? true :get {:handler #ig/ref :hosted-clay.handlers/share-root}}]
+   ["/s/:id/{*path}"        {:public? true :handler #ig/ref :hosted-clay.handlers/share}]]}
 
  :hosted-clay.concerns.reitit/default-handler {}
 
@@ -132,12 +137,17 @@
  {:datasource     #ig/ref :hosted-clay.db/migrator
   :sprites-client #ig/ref :hosted-clay.sprites/client}
 
- :hosted-clay.handlers.notebooks/open
+ :hosted-clay.handlers.notebooks/view
  {:datasource        #ig/ref :hosted-clay.db/migrator
   :sprites-client    #ig/ref :hosted-clay.sprites/client
   :usage-limit-hours #ig/ref :hosted-clay/usage-limit-hours}
 
- :hosted-clay.handlers.notebooks/open-root {}
+ :hosted-clay.handlers.notebooks/edit
+ {:datasource        #ig/ref :hosted-clay.db/migrator
+  :sprites-client    #ig/ref :hosted-clay.sprites/client
+  :usage-limit-hours #ig/ref :hosted-clay/usage-limit-hours}
+
+ :hosted-clay.handlers.notebooks/edit-root {}
 
  :hosted-clay.handlers.notebooks/source
  {:datasource #ig/ref :hosted-clay.db/migrator}

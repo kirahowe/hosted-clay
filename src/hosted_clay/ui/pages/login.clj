@@ -3,6 +3,7 @@
    runs the passkey/passcode flow and sets the `hanko` session cookie;
    on session creation we redirect to the dashboard."
   (:require [hiccup2.core :as h]
+            [hosted-clay.routes :as routes]
             [hosted-clay.ui.layout :as layout]))
 
 (defn- hanko-island [api-url]
@@ -14,7 +15,7 @@
    (str "import { register } from "
         "'https://esm.run/@teamhanko/hanko-elements';\n"
         "const { hanko } = await register('" api-url "');\n"
-        "hanko.onSessionCreated(() => { document.location.href = '/dashboard'; });\n")))
+        "hanko.onSessionCreated(() => { document.location.href = '" (routes/dashboard) "'; });\n")))
 
 (defn render [api-url]
   (layout/page

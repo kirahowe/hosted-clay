@@ -47,25 +47,29 @@
             (is (= 303 status))
             (is (= "/login" (get headers "location")))))
 
-        (testing "the notebook proxy requires a session"
-          (let [{:keys [status]} (handler {:request-method :get :uri "/n/some-id/"})]
-            (is (= 303 status))))
-
         (testing "the workspace page requires a session"
-          (let [{:keys [status headers]} (handler {:request-method :get :uri "/notebooks/some-id"})]
+          (let [{:keys [status headers]} (handler {:request-method :get :uri "/n/some-id"})]
             (is (= 303 status))
             (is (= "/login" (get headers "location")))))
 
+        (testing "the notebook output proxy requires a session"
+          (let [{:keys [status]} (handler {:request-method :get :uri "/n/some-id/view/"})]
+            (is (= 303 status))))
+
+        (testing "the editor proxy requires a session"
+          (let [{:keys [status]} (handler {:request-method :get :uri "/e/some-id/"})]
+            (is (= 303 status))))
+
         (testing "creating a notebook without a session is a 401, not a redirect"
-          (let [{:keys [status]} (handler {:request-method :post :uri "/notebooks"})]
+          (let [{:keys [status]} (handler {:request-method :post :uri "/n"})]
             (is (= 401 status))))
 
-        (testing "an unknown share token is a 404 and needs no session"
+        (testing "an unknown share link is a 404 and needs no session"
           (let [{:keys [status]} (handler {:request-method :get :uri "/s/nope/"})]
             (is (= 404 status))))
 
         (testing "a cross-origin POST is refused"
-          (let [{:keys [status]} (handler {:request-method :post :uri "/notebooks"
+          (let [{:keys [status]} (handler {:request-method :post :uri "/n"
                                            :headers {"origin" "https://evil.test"}})]
             (is (= 403 status))))
 
@@ -95,8 +99,8 @@
                                                     :path-params {:id id}})]
                 (is (= 200 status))
                 (is (re-find #"<iframe" body))
-                (is (re-find (re-pattern (str "/n/" id "/edit/")) body))
-                (is (re-find (re-pattern (str "/n/" id "/\"")) body))))
+                (is (re-find (re-pattern (str "/e/" id "/")) body) "editor pane")
+                (is (re-find (re-pattern (str "/n/" id "/view/")) body) "output pane")))
 
             (testing "a non-owner gets a 404, not a 403 (ids stay unprobeable)"
               (let [{:keys [status]} (handler {:user-id     "someone-else"

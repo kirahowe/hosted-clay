@@ -6,6 +6,7 @@
             [integrant.core :as ig]
             [hosted-clay.notebooks :as notebooks]
             [hosted-clay.proxy :as proxy]
+            [hosted-clay.routes :as routes]
             [hosted-clay.snapshot :as snapshot]
             [hosted-clay.sprites.exec :as exec]
             [hosted-clay.ui.pages.workspace :as workspace]
@@ -42,7 +43,7 @@
                        (throw e))))]
       (cond
         (= ::notebooks/already-exists result)
-        (response/see-other "/dashboard")
+        (response/see-other (routes/dashboard))
 
         (= ::at-capacity result)
         (response/html 503
@@ -56,7 +57,7 @@
           ;; page can show progress.
           (when (= "provisioning" (:notebooks/status result))
             (future (notebooks/finish-provisioning! datasource sprites-client result)))
-          (response/see-other (str "/notebooks/" (:notebooks/id result))))))))
+          (response/see-other (routes/notebook (:notebooks/id result))))))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/workspace
   [_ {:keys [datasource base-url usage-limit-hours]}]
@@ -105,7 +106,7 @@
         (when (= "failed" (:notebooks/status notebook))
           (when-let [reset (notebooks/retry-provisioning! datasource notebook)]
             (future (notebooks/finish-provisioning! datasource sprites-client reset))))
-        (response/see-other (str "/notebooks/" (:notebooks/id notebook)))))))
+        (response/see-other (routes/notebook (:notebooks/id notebook)))))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/delete
   [_ {:keys [datasource sprites-client]}]
@@ -118,11 +119,11 @@
   (fn [req]
     (when-let [notebook (owned-notebook datasource req)]
       (notebooks/delete! datasource sprites-client notebook))
-    (response/see-other "/dashboard")))
+    (response/see-other (routes/dashboard))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/restart
   [_ {:keys [datasource sprites-client]}]
-  ;; Bounce a notebook when Clay/the REPL has died and `/n/:id/` is 502ing.
+  ;; Bounce a notebook when Clay/the REPL has died and `/n/:id/view/` is 502ing.
   ;; Restarts BOTH the `notebook` service (Clay + nREPL) and `code-server`:
   ;; Calva's auto-connect is one-shot at editor activation, so without also
   ;; restarting code-server it would be left pointing at the now-dead REPL.
@@ -175,7 +176,7 @@
       (fn [notebook]
         (when (= "ready" (:notebooks/status notebook))
           (notebooks/suspend! datasource notebook))
-        (response/see-other (safe-return req "/dashboard"))))))
+        (response/see-other (safe-return req (routes/dashboard)))))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/resume
   [_ {:keys [datasource]}]
@@ -186,7 +187,7 @@
       (fn [notebook]
         (notebooks/resume! datasource notebook)
         (response/see-other
-         (safe-return req (str "/notebooks/" (:notebooks/id notebook))))))))
+         (safe-return req (routes/notebook (:notebooks/id notebook))))))))
 
 (defn- wants-html? [req]
   (some-> (get-in req [:headers "accept"]) str/lower-case (str/includes? "text/html")))
@@ -209,33 +210,53 @@
     (response/html 503 (workspace/render-suspended notebook))
     (response/text 503 "This notebook is suspended. Resume it to use it again.")))
 
-(defmethod ig/init-key :hosted-clay.handlers.notebooks/open
+(defn- proxy-to-sprite
+  "Shared owner proxy for the two live surfaces — the Clay output (/n/:id/view/*)
+   and the editor (/e/:id/*). Ownership is already checked by the caller. Refuse
+   an over-budget or suspended notebook here (before any forward or touch!), so
+   no new request reaches — or wakes — the sprite; otherwise record activity and
+   forward `sub-path` (the path under the sprite root) with framing stripped so
+   the page can embed in the workspace iframes. An already-open WebSocket isn't
+   re-checked, so it can outlive the limit until it next idles and drops."
+  [datasource sprites-client usage-limit-hours notebook sub-path req]
+  (cond
+    (usage/user-over-limit? datasource (:notebooks/user-id notebook) usage-limit-hours)
+    (over-limit-response req notebook usage-limit-hours)
+
+    (notebooks/suspended? notebook)
+    (suspended-response req notebook)
+
+    :else
+    (do
+      (notebooks/touch! datasource notebook)
+      (proxy/forward sprites-client
+                     (:notebooks/sprite-url notebook)
+                     sub-path
+                     req
+                     {:strip-framing? true}))))
+
+(defmethod ig/init-key :hosted-clay.handlers.notebooks/view
   [_ {:keys [datasource sprites-client usage-limit-hours]}]
-  ;; The catch-all proxy: /n/:id/{*path} for every method, WebSockets
-  ;; included. Ownership is the only access check — share links go
-  ;; through /s/ instead. A miss is a 404, not a 403, so notebook ids
-  ;; aren't probeable. An over-budget notebook is refused here (before any
-  ;; forward or touch!), so no new request reaches — or wakes — the sprite. An
-  ;; already-open WebSocket isn't re-checked, so it can outlive the limit until
-  ;; it next idles and drops.
+  ;; The live Clay output, proxied for every method and WebSocket upgrade.
+  ;; Mounted at /n/:id/view/{*path}, whose wildcard is forwarded to the sprite
+  ;; root as-is. A non-owner is a 404, not a 403, so ids aren't probeable.
   (fn [req]
     (with-owned-notebook datasource req
       (fn [notebook]
-        (cond
-          (usage/user-over-limit? datasource (:notebooks/user-id notebook) usage-limit-hours)
-          (over-limit-response req notebook usage-limit-hours)
+        (proxy-to-sprite datasource sprites-client usage-limit-hours notebook
+                         (get-in req [:path-params :path]) req)))))
 
-          (notebooks/suspended? notebook)
-          (suspended-response req notebook)
-
-          :else
-          (do
-            (notebooks/touch! datasource notebook)
-            (proxy/forward sprites-client
-                           (:notebooks/sprite-url notebook)
-                           (get-in req [:path-params :path])
-                           req
-                           {:strip-framing? true})))))))
+(defmethod ig/init-key :hosted-clay.handlers.notebooks/edit
+  [_ {:keys [datasource sprites-client usage-limit-hours]}]
+  ;; The editor (code-server), proxied for every method and WebSocket upgrade.
+  ;; Mounted at /e/:id/{*path}; code-server lives under /edit/ on the sprite, so
+  ;; the wildcard is prefixed with `edit/` before forwarding. A non-owner is a
+  ;; 404 (ids stay unprobeable), same as the output proxy.
+  (fn [req]
+    (with-owned-notebook datasource req
+      (fn [notebook]
+        (proxy-to-sprite datasource sprites-client usage-limit-hours notebook
+                         (str "edit/" (get-in req [:path-params :path])) req)))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/source
   [_ {:keys [datasource]}]
@@ -249,8 +270,9 @@
           (response/html
            (workspace/render-source notebook (:notebook-snapshots/source snap))))))))
 
-(defmethod ig/init-key :hosted-clay.handlers.notebooks/open-root [_ _]
-  ;; /n/:id -> /n/:id/ so relative asset URLs in the proxied pages
-  ;; resolve under the notebook prefix.
+(defmethod ig/init-key :hosted-clay.handlers.notebooks/edit-root [_ _]
+  ;; /e/:id -> /e/:id/ so code-server's relative asset URLs resolve under the
+  ;; editor prefix. (The workspace iframe already uses the trailing-slash form;
+  ;; this catches a bare /e/:id opened directly.)
   (fn [req]
-    (response/see-other (str "/n/" (get-in req [:path-params :id]) "/"))))
+    (response/see-other (routes/editor-root (get-in req [:path-params :id])))))

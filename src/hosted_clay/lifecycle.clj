@@ -8,6 +8,7 @@
   (:require [clojure.tools.logging :as log]
             [hosted-clay.db.crud :as crud]
             [hosted-clay.notebooks :as notebooks]
+            [hosted-clay.routes :as routes]
             [hosted-clay.users :as users])
   (:import (java.time Duration Instant)))
 
@@ -37,7 +38,7 @@
                  "Your notebook \"" (:notebooks/title notebook) "\" hasn't been "
                  "opened in a while. Notebooks idle for " delete-after-days
                  " days are deleted automatically.\n\n"
-                 "Open it to keep it: " base-url "/n/" (:notebooks/id notebook) "/\n\n"
+                 "Open it to keep it: " (routes/absolute base-url (routes/notebook (:notebooks/id notebook))) "\n\n"
                  "— Clay notebooks")})
 
 (defn- warn! [ds send-email notebook {:keys [base-url delete-after-days]}]

@@ -1,5 +1,6 @@
 (ns hosted-clay.ui.layout
-  (:require [hiccup2.core :as h]))
+  (:require [hiccup2.core :as h]
+            [hosted-clay.routes :as routes]))
 
 (def ^:private description
   "Hosted Clay notebooks for Clojure data science — a real editor, a live REPL, zero setup.")
@@ -36,7 +37,7 @@
   "The shared header: wordmark and page nav links."
   [& links]
   [:header.site
-   [:a.wordmark {:href "/"} "clay notebooks"]
+   [:a.wordmark {:href (routes/home)} "clay notebooks"]
    (-> [:nav] (into links))])
 
 (defn site-footer
@@ -89,7 +90,7 @@
    {:eyebrow "404"
     :heading "Not found"
     :lead    message
-    :actions [[:a.button {:href "/"} "Back to the homepage"]]}))
+    :actions [[:a.button {:href (routes/home)} "Back to the homepage"]]}))
 
 (defn forbidden
   "The body for a 403. Offers a sign-out so a signed-in visitor who hit
@@ -99,7 +100,7 @@
    {:eyebrow "403"
     :heading "Not allowed"
     :lead    message
-    :actions [[:form.inline-form {:method "post" :action "/logout"}
+    :actions [[:form.inline-form {:method "post" :action (routes/logout)}
                [:button.button--primary {:type "submit"} "Sign out"]]]}))
 
 (defn unavailable
@@ -110,7 +111,7 @@
    {:eyebrow "503"
     :heading "Temporarily paused"
     :lead    message
-    :actions [[:a.button {:href "/"} "Back to the homepage"]]}))
+    :actions [[:a.button {:href (routes/home)} "Back to the homepage"]]}))
 
 (defn error
   "The body for a 500. Deliberately static — it must render even when the
@@ -120,4 +121,4 @@
    {:eyebrow "500"
     :heading "Something went wrong"
     :lead    "An unexpected error occurred on our end. Please try again in a moment."
-    :actions [[:a.button {:href "/"} "Back to the homepage"]]}))
+    :actions [[:a.button {:href (routes/home)} "Back to the homepage"]]}))

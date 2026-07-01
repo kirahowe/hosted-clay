@@ -31,6 +31,7 @@
    soft budget, not an invoice."
   (:require [clojure.tools.logging :as log]
             [hosted-clay.db.crud :as crud]
+            [hosted-clay.routes :as routes]
             [hosted-clay.users :as users]))
 
 (defn current-month
@@ -71,7 +72,7 @@
                  " active hours this month. When it reaches " limit-hours
                  " hours it will pause until the start of next month — your work "
                  "is saved, and it resumes automatically.\n\n"
-                 "Open it: " base-url "/n/" (:notebooks/id notebook) "/\n\n"
+                 "Open it: " (routes/absolute base-url (routes/notebook (:notebooks/id notebook))) "\n\n"
                  "— Clay notebooks")})
 
 (defn- warn! [ds send-email usage-row-id user notebook seconds {:keys [limit-hours base-url]}]
