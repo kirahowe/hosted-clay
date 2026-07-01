@@ -9,8 +9,9 @@
  ;; Point at your own (free-tier) Hanko Cloud project: dashboard → API URL.
  ;; The auth middleware derives the JWKS URL (base + /.well-known/jwks.json)
  ;; from the same base the login element talks to.
- :hosted-clay.auth/middleware     {:api-url #env/opt "HANKO_API_URL"}
- :hosted-clay.handlers.auth/login {:api-url #env/opt "HANKO_API_URL"}
+ :hosted-clay.auth/middleware      {:api-url #env/opt "HANKO_API_URL"}
+ :hosted-clay.handlers.auth/login  {:api-url #env/opt "HANKO_API_URL"}
+ :hosted-clay.web/security-headers {:hanko-api-url #env/opt "HANKO_API_URL"}
 
  ;; A real Sprites token makes the whole flow work from dev; without one,
  ;; sprite calls 401 but everything up to notebook creation is usable.

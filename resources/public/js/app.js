@@ -1,6 +1,7 @@
 // Site-wide progressive enhancement. Each feature is a no-op unless its
 // hook attributes are present, so this one file can load on every page:
 //   [data-copy]          copy a value to the clipboard
+//   [data-confirm]       ask before submitting a destructive form
 //   [data-submit-label]  show progress on a form's submit button
 //   [data-provision]     poll a provisioning notebook until it's ready
 //
@@ -21,6 +22,15 @@
           btn.removeAttribute("data-copied");
         }, 1500);
       }, function () {});
+    });
+  });
+
+  // Confirm-before-submit for destructive forms (delete). An attribute
+  // hook rather than an inline onsubmit= so the site's CSP can stay
+  // script-src 'self' with no unsafe-inline/unsafe-hashes carve-outs.
+  document.querySelectorAll("form[data-confirm]").forEach(function (form) {
+    form.addEventListener("submit", function (e) {
+      if (!window.confirm(form.getAttribute("data-confirm"))) e.preventDefault();
     });
   });
 
