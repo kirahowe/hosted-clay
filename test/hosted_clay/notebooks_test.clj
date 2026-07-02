@@ -44,6 +44,8 @@
          (let [user (make-user ds)
                nb   (notebooks/create! ds client limits (:users/id user) "My notebook")]
            (is (= "My notebook" (:notebooks/title nb)))
+           (is (seq (:notebooks/share-token nb)))
+           (is (= nb (notebooks/by-share-token ds (:notebooks/share-token nb))))
 
            (testing "second create reports the existing notebook"
              (is (= ::notebooks/already-exists

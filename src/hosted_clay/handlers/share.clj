@@ -1,12 +1,13 @@
 (ns hosted-clay.handlers.share
-  "The public read-only view: /s/:id/*, keyed on the notebook id (a random UUID,
-   so unguessable). Once a notebook has a rendered snapshot, this serves that
-   static HTML straight from the control plane — no sprite contact, so it costs
-   nothing and works even while the notebook is paused for the month. Until the
-   first snapshot lands (a brand-new notebook), it falls back to proxying the
-   live Clay-rendered notebook. Reads only — non-GET methods are refused — and
-   the editor is unreachable: /edit/* (and so code-server, WebSockets included)
-   never leaves this handler."
+  "The public read-only view: /s/:token/*. The share token is separate from the
+   notebook id (an unguessable, revocable capability), so a share link never
+   exposes the notebook's own id or its owner routes. Once a notebook has a
+   rendered snapshot, this serves that static HTML straight from the control
+   plane — no sprite contact, so it costs nothing and works even while the
+   notebook is paused for the month. Until the first snapshot lands (a brand-new
+   notebook), it falls back to proxying the live Clay-rendered notebook. Reads
+   only — non-GET methods are refused — and the editor is unreachable: /edit/*
+   (and so code-server, WebSockets included) never leaves this handler."
   (:require [clojure.string :as str]
             [integrant.core :as ig]
             [hosted-clay.notebooks :as notebooks]
@@ -38,7 +39,7 @@
 (defmethod ig/init-key :hosted-clay.handlers/share
   [_ {:keys [datasource sprites-client usage-limit-hours]}]
   (fn [req]
-    (let [notebook (notebooks/by-id datasource (get-in req [:path-params :id]))
+    (let [notebook (notebooks/by-share-token datasource (get-in req [:path-params :token]))
           path     (get-in req [:path-params :path])
           html     (when notebook
                      (:notebook-snapshots/html
@@ -79,4 +80,4 @@
 
 (defmethod ig/init-key :hosted-clay.handlers/share-root [_ _]
   (fn [req]
-    (response/see-other (routes/share (get-in req [:path-params :id])))))
+    (response/see-other (routes/share (get-in req [:path-params :token])))))

@@ -10,10 +10,11 @@
 (def user {:users/email "kira@example.com"})
 
 (defn- notebook []
-  {:notebooks/id         "nb-1"
-   :notebooks/title      "T"
-   :notebooks/status     "ready"
-   :notebooks/created-at "2026-06-24T00:00:00Z"})
+  {:notebooks/id          "nb-1"
+   :notebooks/title       "T"
+   :notebooks/status      "ready"
+   :notebooks/share-token "tok"
+   :notebooks/created-at  "2026-06-24T00:00:00Z"})
 
 (defn- render
   "Render the dashboard for a notebook with `awake-hours` of usage this month."

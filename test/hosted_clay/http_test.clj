@@ -57,7 +57,7 @@
             (is (= 303 status))))
 
         (testing "the editor proxy requires a session"
-          (let [{:keys [status]} (handler {:request-method :get :uri "/e/some-id/"})]
+          (let [{:keys [status]} (handler {:request-method :get :uri "/n/some-id/edit/"})]
             (is (= 303 status))))
 
         (testing "creating a notebook without a session is a 401, not a redirect"
@@ -99,7 +99,7 @@
                                                     :path-params {:id id}})]
                 (is (= 200 status))
                 (is (re-find #"<iframe" body))
-                (is (re-find (re-pattern (str "/e/" id "/")) body) "editor pane")
+                (is (re-find (re-pattern (str "/n/" id "/edit/")) body) "editor pane")
                 (is (re-find (re-pattern (str "/n/" id "/view/")) body) "output pane")))
 
             (testing "a non-owner gets a 404, not a 403 (ids stay unprobeable)"

@@ -155,7 +155,7 @@
 
 (defn- notebook-card [notebook base-url limit-hours awake-seconds]
   (let [status    (:notebooks/status notebook)
-        share-url (routes/absolute base-url (routes/share (:notebooks/id notebook)))]
+        share-url (routes/absolute base-url (routes/share (:notebooks/share-token notebook)))]
     [:section.card.notebook
      (case status
        "ready"  (ready-body notebook share-url limit-hours awake-seconds)

@@ -3,7 +3,8 @@
    that static HTML straight from the control plane (no sprite contact, works
    while paused); until then it falls back to the live proxy. proxy/forward is
    stubbed so we can assert when the sprite is — and isn't — touched. The view is
-   keyed on the notebook id (a random UUID), so the path-param is that id."
+   keyed on the share token (separate from the notebook id), so the path-param is
+   that token."
   (:require [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [integrant.core :as ig]
@@ -53,10 +54,10 @@
 (deftest share-prefers-the-static-snapshot
   (with-ready-notebook
     (fn [ds nb]
-      (let [id        (:notebooks/id nb)
+      (let [token     (:notebooks/share-token nb)
             forwarded (atom 0)
             handler   (share-handler ds)
-            get-doc   #(handler {:request-method :get :path-params {:id id :path ""}})]
+            get-doc   #(handler {:request-method :get :path-params {:token token :path ""}})]
         (with-redefs [proxy/forward (fn [& _] (swap! forwarded inc) {:status 200 :body "LIVE"})]
           (testing "no snapshot yet → falls back to the live proxy"
             (let [resp (get-doc)]
@@ -79,27 +80,27 @@
   (with-ready-notebook
     (fn [ds nb]
       (over-limit! ds nb)
-      (let [id        (:notebooks/id nb)
+      (let [token     (:notebooks/share-token nb)
             forwarded (atom 0)
             handler   (share-handler ds)]
         (with-redefs [proxy/forward (fn [& _] (swap! forwarded inc) {:status 200})]
           (testing "no snapshot and over the limit → 503, and the sprite is left alone"
-            (let [resp (handler {:request-method :get :path-params {:id id :path ""}})]
+            (let [resp (handler {:request-method :get :path-params {:token token :path ""}})]
               (is (= 503 (:status resp)))
               (is (zero? @forwarded)))))))))
 
 (deftest share-snapshot-sets-no-cache-and-strips-head-body
   (with-ready-notebook
     (fn [ds nb]
-      (let [id      (:notebooks/id nb)
+      (let [token   (:notebooks/share-token nb)
             handler (share-handler ds)]
         (snapshot-html! ds nb "<html>SNAP</html>")
         (testing "GET carries no-cache so a viewer always revalidates"
-          (let [resp (handler {:request-method :get :path-params {:id id :path ""}})]
+          (let [resp (handler {:request-method :get :path-params {:token token :path ""}})]
             (is (= "no-cache" (get-in resp [:headers "cache-control"])))
             (is (str/includes? (:body resp) "SNAP"))))
         (testing "HEAD gets the headers but not the (large) body"
-          (let [resp (handler {:request-method :head :path-params {:id id :path ""}})]
+          (let [resp (handler {:request-method :head :path-params {:token token :path ""}})]
             (is (= 200 (:status resp)))
             (is (= "" (:body resp)))
             (is (= "no-cache" (get-in resp [:headers "cache-control"])))))))))
@@ -108,10 +109,10 @@
   (with-ready-notebook
     (fn [ds nb]
       (notebooks/suspend! ds nb)
-      (let [id        (:notebooks/id nb)
+      (let [token     (:notebooks/share-token nb)
             forwarded (atom 0)
             handler   (share-handler ds)
-            get-doc   #(handler {:request-method :get :path-params {:id id :path ""}})]
+            get-doc   #(handler {:request-method :get :path-params {:token token :path ""}})]
         (with-redefs [proxy/forward (fn [& _] (swap! forwarded inc) {:status 200})]
           (testing "no snapshot + suspended → 503, the sprite is left asleep"
             (let [resp (get-doc)]
@@ -127,15 +128,15 @@
 (deftest share-refuses-non-get-and-the-editor
   (with-ready-notebook
     (fn [ds nb]
-      (let [id      (:notebooks/id nb)
+      (let [token   (:notebooks/share-token nb)
             handler (share-handler ds)]
         (testing "a non-GET method is 405"
           (is (= 405 (:status (handler {:request-method :post
-                                        :path-params {:id id :path ""}})))))
+                                        :path-params {:token token :path ""}})))))
         (testing "the editor path is 403 even with a snapshot present"
           (snapshot-html! ds nb "<html>x</html>")
           (is (= 403 (:status (handler {:request-method :get
-                                        :path-params {:id id :path "edit/"}})))))
-        (testing "an unknown id is a 404"
+                                        :path-params {:token token :path "edit/"}})))))
+        (testing "an unknown token is a 404"
           (is (= 404 (:status (handler {:request-method :get
-                                        :path-params {:id "nope" :path ""}})))))))))
+                                        :path-params {:token "nope" :path ""}})))))))))

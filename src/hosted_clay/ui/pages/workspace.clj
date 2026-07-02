@@ -12,7 +12,7 @@
   (let [id         (:notebooks/id notebook)
         title      (:notebooks/title notebook)
         editor-src (routes/editor id)
-        share-url  (routes/absolute base-url (routes/share id))]
+        share-url  (routes/absolute base-url (routes/share (:notebooks/share-token notebook)))]
     (layout/page
      title
      [:div.workspace {:data-notebook-id id}
@@ -103,9 +103,7 @@
    notebook " — paused for the month"
    {:eyebrow "Monthly limit reached"
     :heading "This notebook is paused for the month"
-    :lead    (str "It's used its " limit-hours " active hours for this month, so "
-                  "it's paused for now. Your work is saved and is available as read-only."
-                  "Your hourly limit resets at the beginning of next month.")
+    :lead    (str "It's used its " limit-hours " active hours for this month, so it's paused for now. Your work is saved and stays available read-only, and the limit resets at the start of next month.")
     :actions [[:a.button.button--primary {:href (routes/dashboard)} "← Back to dashboard"]
               [:a.button {:href (routes/notebook-source (:notebooks/id notebook))}
                "View source"]]}))
@@ -133,8 +131,7 @@
      notebook " — setup failed"
      {:eyebrow "Setup failed"
       :heading "Setup didn't finish"
-      :lead    (str "Something went wrong while building your environment. You can "
-                    "try again, or delete this notebook and start over and start over.")
+      :lead    "Something went wrong while building your environment. You can try again, or delete this notebook and start over."
       :actions [[:form.inline-form {:method "post" :action (routes/notebook-retry id)
                                     :data-submit-label "Retrying…"}
                  [:button.button--primary {:type "submit"} "Try again"]]

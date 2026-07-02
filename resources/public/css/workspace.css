@@ -1,5 +1,5 @@
 /* The editing workspace: a full-viewport split of editor and output.
-   Loaded only on /notebooks/:id (ready state), on top of tokens.css +
+   Loaded only on /n/:id (ready state), on top of tokens.css +
    main.css. */
 
 html, body.workspace-body { height: 100%; }

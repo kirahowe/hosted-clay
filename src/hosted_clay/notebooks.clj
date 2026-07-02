@@ -1,8 +1,7 @@
 (ns hosted-clay.notebooks
   "Notebook domain logic: creating (claiming a warm sprite or
-   provisioning one on the spot), activity tracking, and deletion.
-   Sharing needs no domain logic — the public view keys on the notebook
-   id (a random UUID), so there's nothing extra to store or look up."
+   provisioning one on the spot), sharing, activity tracking, and
+   deletion."
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
             [hosted-clay.db.crud :as crud]
@@ -17,6 +16,14 @@
 (defn by-id [ds id]
   (when id (crud/by-id ds :notebooks id)))
 
+(defn new-share-token
+  "An unguessable, URL-safe share token (128 bits, base32)."
+  []
+  (.toString (java.math.BigInteger. 128 (java.security.SecureRandom.)) 32))
+
+(defn by-share-token [ds token]
+  (when token (crud/find-1 ds :notebooks {:share-token token})))
+
 (defn owned-by? [notebook user-id]
   (= (:notebooks/user-id notebook) user-id))
 
@@ -29,6 +36,7 @@
     (crud/create! ds :notebooks
                   (merge {:user-id          user-id
                           :title            title
+                          :share-token      (new-share-token)
                           :last-accessed-at (crud/now)}
                          attrs))
     (catch java.sql.SQLException e

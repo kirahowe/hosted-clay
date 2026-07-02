@@ -212,7 +212,7 @@
 
 (defn- proxy-to-sprite
   "Shared owner proxy for the two live surfaces — the Clay output (/n/:id/view/*)
-   and the editor (/e/:id/*). Ownership is already checked by the caller. Refuse
+   and the editor (/n/:id/edit/*). Ownership is already checked by the caller. Refuse
    an over-budget or suspended notebook here (before any forward or touch!), so
    no new request reaches — or wakes — the sprite; otherwise record activity and
    forward `sub-path` (the path under the sprite root) with framing stripped so
@@ -249,8 +249,8 @@
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/edit
   [_ {:keys [datasource sprites-client usage-limit-hours]}]
   ;; The editor (code-server), proxied for every method and WebSocket upgrade.
-  ;; Mounted at /e/:id/{*path}; code-server lives under /edit/ on the sprite, so
-  ;; the wildcard is prefixed with `edit/` before forwarding. A non-owner is a
+  ;; Mounted at /n/:id/edit/{*path}; code-server lives under /edit/ on the sprite,
+  ;; so the wildcard is prefixed with `edit/` before forwarding. A non-owner is a
   ;; 404 (ids stay unprobeable), same as the output proxy.
   (fn [req]
     (with-owned-notebook datasource req
@@ -271,8 +271,8 @@
            (workspace/render-source notebook (:notebook-snapshots/source snap))))))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/edit-root [_ _]
-  ;; /e/:id -> /e/:id/ so code-server's relative asset URLs resolve under the
-  ;; editor prefix. (The workspace iframe already uses the trailing-slash form;
-  ;; this catches a bare /e/:id opened directly.)
+  ;; /n/:id/edit -> /n/:id/edit/ so code-server's relative asset URLs resolve
+  ;; under the editor prefix. (The workspace iframe already uses the trailing-
+  ;; slash form; this catches a bare /n/:id/edit opened directly.)
   (fn [req]
     (response/see-other (routes/editor-root (get-in req [:path-params :id])))))

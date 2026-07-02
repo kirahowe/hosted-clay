@@ -8,13 +8,13 @@
    The router in base-system.edn declares the same paths; these helpers are the
    inverse direction (params -> path) and have to be kept in step with it.
 
-   A notebook lives under three prefixes:
-     /n/:id   the owner's workspace page, its control actions, and — nested at
-              /n/:id/view/ — the live Clay output the page embeds
-     /e/:id   the owner's editor (code-server), embedded by the workspace and
-              openable on its own
-     /s/:id   the public read-only view, keyed on the notebook id (a random
-              UUID, so unguessable — no separate share token)")
+   A notebook lives under two prefixes:
+     /n/:id    the owner's workspace page, its control actions, and the two live
+               surfaces the page embeds — the Clay output at /n/:id/view/ and the
+               editor (code-server) at /n/:id/edit/
+     /s/:token the public read-only view, keyed on a separate unguessable share
+               token so a share link never exposes the notebook id or its owner
+               routes")
 
 ;; ---------- top-level pages ----------
 
@@ -51,13 +51,14 @@
   [id]
   (str (notebook id) "/view/"))
 
-;; ---------- owner editor: /e/:id/* ----------
+;; ---------- owner editor: /n/:id/edit/* ----------
 
 (defn editor-root
-  "The code-server editor root, /e/<id>/. Trailing slash canonical so its
-   relative assets resolve under the prefix; /e/:id (no slash) redirects here."
+  "The code-server editor root, /n/<id>/edit/. Trailing slash canonical so its
+   relative assets resolve under the prefix; /n/:id/edit (no slash) redirects
+   here."
   [id]
-  (str "/e/" id "/"))
+  (str (notebook id) "/edit/"))
 
 (defn editor
   "The editor with `?folder` pinned — code-server resolves the folder as
@@ -66,13 +67,13 @@
   [id]
   (str (editor-root id) "?folder=/home/sprite/notebook"))
 
-;; ---------- public read-only share view: /s/:id/* ----------
+;; ---------- public read-only share view: /s/:token/* ----------
 
 (defn share
-  "The public read-only view for notebook `id`. Trailing slash canonical, like
-   the others; /s/:id (no slash) redirects here."
-  [id]
-  (str "/s/" id "/"))
+  "The public read-only view for share `token`. Trailing slash canonical, like
+   the others; /s/:token (no slash) redirects here."
+  [token]
+  (str "/s/" token "/"))
 
 ;; ---------- absolute URLs ----------
 
