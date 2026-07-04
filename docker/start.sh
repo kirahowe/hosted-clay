@@ -5,9 +5,10 @@
 # when the volume is empty (a fresh volume after a disaster self-heals to the
 # newest backup, and a truly first boot with no replica just proceeds), then
 # Litestream replicates every change to the bucket and -exec supervises the
-# JVM (the app's exit is the container's exit). Without the secret, run the
-# app directly and say so loudly: the database then lives only on the single
-# Fly volume.
+# JVM (the app's exit is the container's exit). -log-level warn drops the
+# per-second "replica sync" INFO line, leaving only warnings and errors.
+# Without the secret, run the app directly and say so loudly: the database
+# then lives only on the single Fly volume.
 #
 # The replica URL is S3-compatible; a non-AWS store needs its endpoint and
 # region as query params (e.g.
@@ -22,7 +23,7 @@ DB_PATH=/data/hosted-clay.db
 APP="java -cp /app/conf:/app/hosted-clay.jar hosted_clay.main prod.edn"
 
 if [ -n "${LITESTREAM_REPLICA_URL:-}" ]; then
-  exec litestream replicate -restore-if-db-not-exists \
+  exec litestream replicate -log-level warn -restore-if-db-not-exists \
     -exec "$APP" "$DB_PATH" "$LITESTREAM_REPLICA_URL"
 else
   echo "WARNING: LITESTREAM_REPLICA_URL not set — running WITHOUT streaming" \
