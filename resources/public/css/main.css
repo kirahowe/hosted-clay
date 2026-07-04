@@ -428,10 +428,11 @@ main li { margin-bottom: var(--space-2); }
    only air above the headline, so the page opens flush under the nav. */
 .hero {
   padding: 0 0 var(--space-7);
-  border-bottom: var(--hairline) solid var(--border);
 }
-/* The hero carries its own bottom padding and a border — the default
-   section margin would pile on top. */
+/* The hero sets its own bottom padding and drops the default section margin, so
+   the framed preview below sits a fixed distance beneath it. No divider rule:
+   the hero's border-bottom would land flush on the preview's top edge and read
+   as a line drawn across the screenshot. */
 main > section.hero { margin-bottom: 0; }
 .hero .eyebrow { margin-bottom: var(--space-3); }
 .hero h1 { margin-bottom: var(--space-5); }
