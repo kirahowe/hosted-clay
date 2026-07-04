@@ -56,7 +56,7 @@
    [:p.lead
     "Hosted " [:a {:href "https://scicloj.github.io/clay/"} "Clay"]
     " notebooks for the " [:a {:href "https://scicloj.github.io/"} "scicloj"]
-    " community. Sign in, spin up a notebook, and try real Clojure data science in the browser — "
+    " community. Sign in, spin up a notebook, and try real Clojure data science in the browser, with "
     [:a {:href "https://scicloj.github.io/noj/"} "Noj"]
     " loaded and ready to go."]
    [:div.actions
@@ -177,13 +177,14 @@
     [:a {:href "https://github.com/kirahowe/hosted-clay"} "browse the code on GitHub"]
     "."]])
 
-(defn render []
+(defn render [signed-in?]
   (layout/page
-   "Clay notebooks"
+   "Clojure notebooks"
    [:div
     (layout/site-header
-     [:a {:href (routes/dashboard)} "Dashboard"]
-     [:a {:href (routes/login)} "Sign in"])
+     (if signed-in?
+       [:a.button {:href (routes/dashboard)} "Dashboard"]
+       [:a.button {:href (routes/login)} "Sign in"]))
     [:main
      (hero)
      (preview)

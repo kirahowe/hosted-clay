@@ -14,13 +14,6 @@
 (defn- public? [req]
   (boolean (-> req :reitit.core/match :data :public?)))
 
-(defn- session-token
-  "The raw `hanko` session JWT from the Cookie header, or nil."
-  [req]
-  (some->> (get-in req [:headers "cookie"])
-           (re-find #"(?:^|;\s*)hanko=([^;]+)")
-           second))
-
 (defn- unauthenticated [req]
   ;; HEAD is a safe browser/crawler method that should mirror GET, so it
   ;; gets the same /login redirect; other methods (POST etc.) get a 401.
@@ -32,7 +25,7 @@
   (fn [req]
     (if (public? req)
       (handler req)
-      (if-let [claims (auth/verify-token jwks-url (session-token req))]
+      (if-let [claims (auth/verify-token jwks-url (auth/session-token req))]
         (let [user (users/provision! datasource (auth/claims->identity-attrs claims))]
           (handler (assoc req :user user :user-id (:users/id user))))
         (unauthenticated req)))))

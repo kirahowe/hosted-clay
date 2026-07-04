@@ -505,19 +505,23 @@ main > section.dash-head { margin-bottom: var(--space-8); }
 
 /* ---------- notebook preview ---------- */
 
-/* A framed screenshot of a fresh notebook. The image already carries its
-   own header bar, so the frame is just a hairline border around it. */
+/* A framed screenshot of a fresh notebook. The image already carries its own
+   window chrome, including a faint hairline along its very top edge. A frame
+   border would stack a second rule directly above that edge and read as a
+   doubled line across the top, so the frame is just rounded corners and a soft
+   shadow. The radius lives on the image itself rather than as an overflow clip
+   on the wrapper, which avoids a seam at the rounded corners; --bg-sunken is a
+   neutral placeholder behind the lazy-loaded image. */
 .preview {
-  border: var(--hairline) solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-sunken);
-  overflow: hidden;
   box-shadow: var(--shadow);
 }
 .preview-img {
   display: block;
   width: 100%;
   height: auto;
+  border-radius: var(--radius);
 }
 
 /* ---------- CTA band ---------- */
@@ -584,6 +588,17 @@ hanko-auth {
   --font-family: var(--font-sans);
   --input-background-color: var(--bg);
   --link-color: var(--accent);
+}
+
+/* Hanko renders each form row as an <li part="form-item">, and only stretches
+   it to the container's full width on the email/identifier screens (via an
+   internal maxWidth flag → min-width:100%). The password, passcode, and passkey
+   screens omit that flag, so they shrink to their input's min-width and render
+   narrower than the rest. The shadow DOM is mode:open and exposes the row as a
+   ::part, so we can apply the same stretch uniformly and make every screen the
+   same width. */
+hanko-auth::part(form-item) {
+  min-width: 100%;
 }
 
 /* ---------- usage meter ---------- */

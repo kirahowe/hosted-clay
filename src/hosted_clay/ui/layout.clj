@@ -42,14 +42,14 @@
   "The shared header: wordmark and page nav links."
   [& links]
   [:header.site
-   [:a.wordmark {:href (routes/home)} "clay notebooks"]
+   [:a.wordmark {:href (routes/home)} "clojure notebooks"]
    (-> [:nav] (into links))])
 
 (defn site-footer
   "The shared footer: a copyright line and a set of links."
   [& links]
   [:footer.site
-   [:span "© Clay Notebooks · MIT"]
+   [:span "© Clojure Notebooks · MIT"]
    (-> [:nav] (into links))])
 
 (defn status-page

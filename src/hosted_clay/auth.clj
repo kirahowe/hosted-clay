@@ -7,6 +7,23 @@
             [clojure.tools.logging :as log]
             [com.github.sikt-no.clj-jwt :as clj-jwt]))
 
+(defn session-token
+  "The raw `hanko` session JWT from a Ring request's Cookie header, or nil
+   when there's no session cookie. A cheap, unverified read of the cookie
+   value — presence is not proof of a valid session."
+  [req]
+  (some->> (get-in req [:headers "cookie"])
+           (re-find #"(?:^|;\s*)hanko=([^;]+)")
+           second))
+
+(defn session-present?
+  "Whether the request carries a `hanko` session cookie at all. A cheap
+   signed-in hint for public pages: it does NOT verify the token, so a
+   truthy result only means \"there's a session cookie worth trying\" — the
+   real auth gate still runs on protected routes."
+  [req]
+  (boolean (session-token req)))
+
 (defn verify-token
   "Verify a Hanko session JWT against the JWKS at `jwks-url`. Returns the
    claims map on success, or nil when the token is missing, malformed,

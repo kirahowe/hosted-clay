@@ -226,6 +226,7 @@ cat > /home/sprite/.local/share/code-server/User/settings.json <<'EOF'
   },
   "editor.formatOnSave": false,
   "editor.minimap.enabled": false,
+  "editor.wordWrap": "on",
   "files.autoSave": "off",
   "workbench.activityBar.location": "hidden",
   "workbench.startupEditor": "none",

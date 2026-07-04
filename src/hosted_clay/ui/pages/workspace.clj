@@ -17,7 +17,7 @@
      title
      [:div.workspace {:data-notebook-id id}
       [:header.workspace-bar
-       [:a.workspace-home {:href (routes/dashboard)} "← Dashboard"]
+       [:a.workspace-action.workspace-home {:href (routes/dashboard)} "← Dashboard"]
        [:span.workspace-title title]
        [:nav.workspace-actions
         [:form.inline-form {:method "post" :action (routes/notebook-suspend id)}
