@@ -2,6 +2,8 @@
 
  :hosted-clay.db/datasource {:db-path "target/test/hosted-clay.db"}
 
+ :hosted-clay/sprite-tag "test"
+
  ;; No Hanko in tests: with no api-url the JWKS URL points nowhere and
  ;; every token verification fails, i.e. all non-public routes 401/303.
  ;; Tests that need an authenticated user provision one directly.

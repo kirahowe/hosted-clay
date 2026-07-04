@@ -7,6 +7,10 @@
  ;; env var. Drives share links, warning emails, and the CSRF check.
  :hosted-clay/base-url #env "BASE_URL"
 
+ ;; Tags sprites created by this deployment as nb-prod-<random> in the shared
+ ;; Sprites dashboard (distinct from a laptop's nb-dev-<random>).
+ :hosted-clay/sprite-tag "prod"
+
  ;; Hanko Cloud project base URL.
  :hosted-clay.auth/middleware     {:api-url #env "HANKO_API_URL"}
  :hosted-clay.handlers.auth/login {:api-url #env "HANKO_API_URL"}

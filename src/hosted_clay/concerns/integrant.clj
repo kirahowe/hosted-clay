@@ -13,6 +13,7 @@
 ;; Derive each constant key from :hosted-clay/const so its value flows
 ;; through the init-method above and can be `#ig/ref`'d by components.
 (derive :hosted-clay/base-url :hosted-clay/const)
+(derive :hosted-clay/sprite-tag :hosted-clay/const)
 (derive :hosted-clay/max-sprites :hosted-clay/const)
 (derive :hosted-clay/max-running :hosted-clay/const)
 (derive :hosted-clay/usage-limit-hours :hosted-clay/const)

@@ -57,7 +57,7 @@
    yet — the caller runs `finish-provisioning!` (in the background) to
    build it. Throws ::budget-exceeded when the slow path would push past
    `max-sprites`."
-  [ds client {:keys [max-sprites]} user-id title]
+  [ds client {:keys [max-sprites sprite-tag]} user-id title]
   (if (for-user ds user-id)
     ::already-exists
     (if-let [{:keys [sprite-name sprite-url]} (pool/claim! ds)]
@@ -75,7 +75,7 @@
         ;; while the row is still 'provisioning' (the proxy and workspace
         ;; both gate on the ready state), so an empty placeholder is safe.
         (insert-notebook! ds client user-id title
-                          {:sprite-name (pool/new-sprite-name)
+                          {:sprite-name (pool/new-sprite-name sprite-tag)
                            :sprite-url  ""
                            :status      "provisioning"}
                           nil)))))

@@ -2,7 +2,8 @@
   "The warm pool of pre-provisioned sprites. New-notebook creation
    claims a ready sprite here so the user never waits on provisioning;
    the scheduler refills the pool in the background."
-  (:require [clojure.tools.logging :as log]
+  (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [honey.sql :as sql]
             [next.jdbc :as jdbc]
             [hosted-clay.db.crud :as crud]
@@ -10,9 +11,16 @@
             [hosted-clay.sprites.provision :as provision]))
 
 (defn new-sprite-name
-  "A fresh sprite name: unguessable, DNS-safe, recognizably ours."
-  []
-  (str "nb-" (.toString (java.math.BigInteger. 64 (java.security.SecureRandom.)) 32)))
+  "A fresh sprite name: unguessable, DNS-safe, recognizably ours, and — when
+   `tag` is set — carrying a short deploy label as `nb-<tag>-<random>` so dev
+   and prod sprites are distinguishable at a glance in the shared Sprites
+   dashboard/CLI. The tag is cosmetic; a blank/nil tag falls back to the bare
+   `nb-<random>`."
+  [tag]
+  (let [suffix (.toString (java.math.BigInteger. 64 (java.security.SecureRandom.)) 32)]
+    (if (str/blank? tag)
+      (str "nb-" suffix)
+      (str "nb-" tag "-" suffix))))
 
 (defn claim!
   "Take one ready sprite out of the pool. Returns {:sprite-name
@@ -37,8 +45,8 @@
    so a crash mid-provision leaves a visible 'provisioning' row instead
    of an orphaned sprite. Returns the ready pool row; on failure deletes
    the sprite and the row, then rethrows."
-  [ds client]
-  (let [sprite-name (new-sprite-name)
+  [ds client sprite-tag]
+  (let [sprite-name (new-sprite-name sprite-tag)
         sprite      (sprites/create-sprite! client sprite-name)
         row         (crud/create! ds :sprite-pool {:sprite-name sprite-name
                                                    :sprite-url  (:url sprite)
@@ -63,7 +71,7 @@
    without pushing the total sprite count past `max-sprites` (the budget
    cap). Provisions serially — this runs on the scheduler thread and
    speed doesn't matter."
-  [ds client {:keys [target max-sprites]}]
+  [ds client {:keys [target max-sprites sprite-tag]}]
   (let [deficit (- target (crud/count-rows ds :sprite-pool))
         room    (- max-sprites (sprite-count ds))
         n       (max 0 (min deficit room))]
@@ -71,7 +79,7 @@
       (pos? n)
       (do (log/info "replenishing pool" {:adding n})
           (dotimes [_ n]
-            (provision-one! ds client)))
+            (provision-one! ds client sprite-tag)))
 
       ;; Want to refill but the sprite ceiling leaves no room: the pool runs
       ;; dry and the next "New notebook" takes the slow path. Worth a WARN —

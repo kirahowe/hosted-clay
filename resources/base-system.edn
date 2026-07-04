@@ -7,6 +7,14 @@
  ;; emails, and the CSRF origin check. Overridden per environment.
  :hosted-clay/base-url "http://localhost:3000"
 
+ ;; A short display tag mixed into every generated sprite name as
+ ;; nb-<tag>-<random>, so prod and dev sprites are distinguishable at a glance in
+ ;; the shared Sprites.dev dashboard/CLI (which lists every org sprite by name).
+ ;; Cosmetic only — never branch behaviour on it; a blank value just drops the
+ ;; tag (nb-<random>). Should be a short, DNS-safe token; overridden per
+ ;; environment ("prod"/"dev"/"test"), with this bare-boot fallback.
+ :hosted-clay/sprite-tag "local"
+
  ;; Registration ceiling: the most sprites (notebooks + warm pool) this
  ;; deployment will ever *hold*. Sprites suspend after ~30s idle and bill
  ;; compute only while awake (storage-only when suspended), so holding more
@@ -129,7 +137,8 @@
  :hosted-clay.handlers.notebooks/create
  {:datasource     #ig/ref :hosted-clay.db/migrator
   :sprites-client #ig/ref :hosted-clay.sprites/client
-  :max-sprites    #ig/ref :hosted-clay/max-sprites}
+  :max-sprites    #ig/ref :hosted-clay/max-sprites
+  :sprite-tag     #ig/ref :hosted-clay/sprite-tag}
 
  :hosted-clay.handlers.notebooks/workspace
  {:datasource        #ig/ref :hosted-clay.db/migrator
@@ -186,6 +195,7 @@
   :sprites-client    #ig/ref :hosted-clay.sprites/client
   :email             #ig/ref :hosted-clay/email
   :base-url          #ig/ref :hosted-clay/base-url
+  :sprite-tag           #ig/ref :hosted-clay/sprite-tag
   :max-sprites          #ig/ref :hosted-clay/max-sprites
   :max-running          #ig/ref :hosted-clay/max-running
   :usage-limit-hours    #ig/ref :hosted-clay/usage-limit-hours

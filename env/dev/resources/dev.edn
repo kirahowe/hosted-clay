@@ -2,6 +2,10 @@
 
  :hosted-clay/base-url "http://localhost:4000"
 
+ ;; Tags sprites created from a laptop as nb-dev-<random> in the shared
+ ;; Sprites dashboard (distinct from prod's nb-prod-<random>).
+ :hosted-clay/sprite-tag "dev"
+
  ;; Point at your own (free-tier) Hanko Cloud project: dashboard → API URL.
  ;; The auth middleware derives the JWKS URL (base + /.well-known/jwks.json)
  ;; from the same base the login element talks to.

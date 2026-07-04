@@ -29,13 +29,13 @@
     (response/not-found "No such notebook.")))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/create
-  [_ {:keys [datasource sprites-client max-sprites]}]
+  [_ {:keys [datasource sprites-client max-sprites sprite-tag]}]
   (fn [req]
     (let [title  (let [t (str (get-in req [:params "title"]))]
                    (if (str/blank? t) "My notebook" (subs t 0 (min 120 (count t)))))
           result (try
                    (notebooks/create! datasource sprites-client
-                                      {:max-sprites max-sprites}
+                                      {:max-sprites max-sprites :sprite-tag sprite-tag}
                                       (:user-id req) title)
                    (catch clojure.lang.ExceptionInfo e
                      (if (= ::notebooks/budget-exceeded (:type (ex-data e)))

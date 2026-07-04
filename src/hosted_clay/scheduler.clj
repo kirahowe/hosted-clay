@@ -25,7 +25,7 @@
   [{:keys [datasource sprites-client email tick-ms sweep-every-ticks census-every-ticks
            census-log-every-ticks pool-target max-sprites max-running usage-limit-hours
            usage-warn-hours snapshot-refresh-minutes warn-after-days delete-after-days base-url
-           idle-suspend-minutes]}
+           idle-suspend-minutes sprite-tag]}
    running?]
   ;; Each awake sample during a census run is worth one census interval of awake
   ;; time (nominal — close enough for a soft monthly budget). A short interval
@@ -37,7 +37,8 @@
         (run-quietly! :replenish-pool
                       #(pool/replenish! datasource sprites-client
                                         {:target      pool-target
-                                         :max-sprites max-sprites}))
+                                         :max-sprites max-sprites
+                                         :sprite-tag  sprite-tag}))
         ;; Every tick: force-suspend any sprite a left-open tab is pinning awake
         ;; past the idle window (the client-side pause can't run when the tab's
         ;; machine is asleep or frozen). The proxy tracks last-activity in
@@ -81,7 +82,8 @@
   (let [config   (merge {:tick-ms 60000 :sweep-every-ticks 60
                          :census-every-ticks 1 :census-log-every-ticks 5} config)
         running? (atom true)]
-    (log/info "scheduler starting" {:tick-ms              (:tick-ms config)
+    (log/info "scheduler starting" {:sprite-tag           (:sprite-tag config)
+                                    :tick-ms              (:tick-ms config)
                                     :pool-target          (:pool-target config)
                                     :max-sprites          (:max-sprites config)
                                     :max-running          (:max-running config)
