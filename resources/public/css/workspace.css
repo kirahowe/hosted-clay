@@ -70,9 +70,14 @@ body.workspace-body { overflow: hidden; }
   background: transparent;
   cursor: default;
 }
-.workspace-action[data-copied="true"] {
+/* Hold the success colour through hover — the cursor is on the button when the
+   copy fires, and .workspace-action:hover would otherwise flip the fill under
+   the green label. See the matching .copy rule in main.css. */
+.workspace-action[data-copied="true"],
+.workspace-action[data-copied="true"]:hover {
   color: var(--success);
   border-color: var(--success);
+  background: transparent;
 }
 
 /* The split. The editor pane's width lives in a custom property so the

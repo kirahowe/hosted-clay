@@ -32,11 +32,13 @@
   --accent-fg: #ffffff;
   --accent-bg: #eaeefb;
   --accent-border: #4670cc;
-  --accent-soft: #dce3f7;
   --accent-2: #63b132;
 
-  /* State — independent of the accent. */
+  /* State — independent of the accent. --danger-fg is text laid ON a danger
+     fill (the destructive button on hover), mirroring --accent-fg; it flips
+     dark in the dark palette where the fill itself is a light red. */
   --danger: #b3261e;
+  --danger-fg: #ffffff;
   --danger-bg: #fbeceb;
   --success: #1a7f37;
   --success-bg: #e9f3eb;
@@ -111,10 +113,10 @@
     --accent-fg: #0a1224;
     --accent-bg: #16213e;
     --accent-border: #90b4fe;
-    --accent-soft: #161e32;
     --accent-2: #91dc47;
 
     --danger: #ff6b61;
+    --danger-fg: #2a1411;
     --danger-bg: #2a1411;
     --success: #4ac26b;
     --success-bg: #11251a;

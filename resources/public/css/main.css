@@ -167,8 +167,12 @@ header.site nav {
   gap: var(--space-5);
   font-size: var(--step--1);
 }
-header.site nav a { color: var(--fg-muted); text-decoration: none; }
-header.site nav a:hover { color: var(--fg); text-decoration: none; }
+/* Plain nav links only. A `.button` anchor placed in the nav (the header's
+   Sign in / Dashboard actions) must keep its button styling — without the
+   :not(.button) guard these rules outrank .button:hover on specificity and
+   paint the label with --fg over the button's --fg fill (dark on dark). */
+header.site nav a:not(.button) { color: var(--fg-muted); text-decoration: none; }
+header.site nav a:not(.button):hover { color: var(--fg); text-decoration: none; }
 
 /* ---------- buttons ---------- */
 
@@ -231,7 +235,7 @@ button:disabled,
 .button--danger:hover {
   background: var(--danger);
   border-color: var(--danger);
-  color: #fff;
+  color: var(--danger-fg);
 }
 
 /* A row of sibling actions (e.g. retry / delete). */
@@ -335,7 +339,16 @@ input[type="email"]:focus {
   font-family: var(--font-mono);
   padding: var(--space-2) var(--space-3);
 }
-.copy[data-copied="true"] { color: var(--success); border-color: var(--success); }
+/* The copied confirmation holds its success colour even while hovered — the
+   cursor sits on the button the instant the click sets data-copied, and the
+   default button hover would flip a dark/light fill under the green label
+   (near-invisible green-on-white in dark mode). */
+.copy[data-copied="true"],
+.copy[data-copied="true"]:hover {
+  color: var(--success);
+  border-color: var(--success);
+  background: transparent;
+}
 
 /* ---------- notice / banner ---------- */
 
@@ -568,8 +581,8 @@ footer.site {
   color: var(--fg-muted);
 }
 footer.site nav { display: flex; gap: var(--space-4); }
-footer.site nav a { color: var(--fg-muted); text-decoration: none; }
-footer.site nav a:hover { color: var(--fg); }
+footer.site nav a:not(.button) { color: var(--fg-muted); text-decoration: none; }
+footer.site nav a:not(.button):hover { color: var(--fg); }
 
 /* ---------- login (Hanko web component) ---------- */
 
