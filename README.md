@@ -44,7 +44,7 @@ The SQLite file lives on a single Fly volume, so back it up two ways:
 Idle-notebook warnings only *count* when they're actually delivered:
 without `RESEND_API_KEY` the warning is logged instead of sent, the
 notebook is never marked warned, and idle deletion never fires. To make
-the idle policy (warn at 40 days, delete at 50) operative, set
+the idle policy (warn at 23 days, delete at 30) operative, set
 `RESEND_API_KEY` and an `EMAIL_FROM` on a domain verified in Resend — the
 default (`onboarding@resend.dev`) is Resend's sandbox sender and only
 delivers to addresses verified on your own Resend account.

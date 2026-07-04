@@ -13,8 +13,8 @@ hiccup), state in file-backed SQLite on a Fly volume. It owns:
   sight (`users` + `identities`, so more providers can be added without
   migration).
 - **Notebook lifecycle** — create (claim a warm sprite, or provision one
-  inline as the slow path), delete, idle warning at 40 days, deletion at
-  50 (`hosted-clay.lifecycle`, run by the scheduler).
+  inline as the slow path), delete, idle warning at 23 days, deletion at
+  30 (`hosted-clay.lifecycle`, run by the scheduler).
 - **Warm pool** — the scheduler keeps `pool-target` provisioned sprites
   ready so "New notebook" is instant. Two limits bound spend: `max-sprites`
   is the registration ceiling (the most sprites — notebooks + pool — the

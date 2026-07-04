@@ -25,7 +25,7 @@ one-notebook limit is a database constraint, not just app logic.
 read-only view. `last_accessed_at` is bumped by owner traffic through
 the proxy (throttled to once a minute); `warned_at` records the idle
 warning and is cleared by any owner activity, so deletion requires
-*warned and still idle past 50 days*.
+*warned and still idle past 30 days*.
 
 ## sprite_pool
 

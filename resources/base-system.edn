@@ -230,9 +230,9 @@
   ;; waking a sprite).
   :snapshot-refresh-minutes 15
   :pool-target       2
-  ;; Idle policy: warn by email at 40 days idle, delete at 50 — and only
+  ;; Idle policy: warn by email at 23 days idle, delete at 30 — and only
   ;; ever delete a notebook whose warning was actually delivered
   ;; (hosted-clay.lifecycle records warned-at only on a real send). nil
   ;; disables a step.
-  :warn-after-days   40
-  :delete-after-days 50}}
+  :warn-after-days   23
+  :delete-after-days 30}}

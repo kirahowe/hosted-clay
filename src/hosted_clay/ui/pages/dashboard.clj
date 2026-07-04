@@ -118,7 +118,7 @@
            :data-confirm "Delete this notebook and its environment? This cannot be undone."}
     [:button.button--danger {:type "submit"} "Delete notebook"]]
    [:p.hint
-    "This deletes the notebook and everything in its environment. Idle for 50 "
+    "This deletes the notebook and everything in its environment. Idle for 30 "
     "days, a notebook is deleted automatically — we email a warning first."]])
 
 (defn- ready-body [notebook share-url limit-hours awake-seconds]
