@@ -14,10 +14,12 @@
                   :hanko-api-url "https://abc123.hanko.io/"})]
     (testing "our own pages get the whole baseline"
       (let [{:keys [headers]} (handler {:uri "/login"})]
-        (is (str/includes? (get headers "content-security-policy") "script-src 'self'"))
         (is (str/includes? (get headers "content-security-policy")
-                           "connect-src 'self' https://abc123.hanko.io")
-            "the login island's Hanko API origin is whitelisted")
+                           "script-src 'self' https://kirasumami.pikapod.net")
+            "the Umami analytics script is whitelisted alongside 'self'")
+        (is (str/includes? (get headers "content-security-policy")
+                           "connect-src 'self' https://kirasumami.pikapod.net https://abc123.hanko.io")
+            "both the analytics beacon and the login island's Hanko API are whitelisted")
         (is (= "SAMEORIGIN" (get headers "x-frame-options")))
         (is (= "nosniff" (get headers "x-content-type-options")))
         (is (str/starts-with? (get headers "strict-transport-security") "max-age="))))

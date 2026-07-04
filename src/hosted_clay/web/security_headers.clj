@@ -45,19 +45,28 @@
         (str scheme "://" host (when-not (neg? port) (str ":" port)))))
     (catch Exception _ nil)))
 
+(def ^:private analytics-origin
+  ;; The Umami instance every page loads its analytics script from (and
+  ;; beacons page views back to). Must match the script URL in
+  ;; hosted-clay.ui.layout/page — a mismatch silently kills analytics (the
+  ;; CSP just blocks the load), so change them together.
+  "https://kirasumami.pikapod.net")
+
 (defn content-security-policy
-  "The site CSP. `hanko-origin` (the auth project's API origin) is the one
-   external endpoint the browser must reach — the <hanko-auth> island calls
-   it from /login; everything else is same-origin. style-src allows inline
-   styles because web components (hanko-auth) inject <style> into their
-   shadow roots, which CSP still gates."
+  "The site CSP. Two external endpoints the browser must reach: the Hanko
+   API origin (the <hanko-auth> island calls it from /login) and the Umami
+   analytics origin (script + beacon on every page, see ui.layout);
+   everything else is same-origin. style-src allows inline styles because
+   web components (hanko-auth) inject <style> into their shadow roots,
+   which CSP still gates."
   [hanko-origin]
   (str/join "; "
             ["default-src 'self'"
-             "script-src 'self'"
+             (str "script-src 'self' " analytics-origin)
              "style-src 'self' 'unsafe-inline'"
              "img-src 'self' data:"
-             (str "connect-src 'self'" (when hanko-origin (str " " hanko-origin)))
+             (str "connect-src 'self' " analytics-origin
+                  (when hanko-origin (str " " hanko-origin)))
              "frame-src 'self'"
              "frame-ancestors 'self'"
              "base-uri 'self'"
