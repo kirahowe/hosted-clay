@@ -162,11 +162,13 @@ rm -rf "$ext_build"
 #     Clay at boot, so eval works immediately (no "load file" step). lsp is
 #     static analysis, independent of the running REPL. The
 #     `autoEvaluateCode.onConnect.clj` runs the moment Calva connects (right
-#     after it marks the session connected and evaluatable) — we keep Calva's
-#     default repl-requires setup and append a `spit` of a readiness marker
-#     (/home/sprite/repl-ready, served by Caddy at /repl-ready) so the
-#     workspace page can hold its loading overlay up until the REPL is
-#     genuinely connected, not just until the iframe paints. start.sh clears
+#     after it marks the session connected and evaluatable) — it calls
+#     `watch/ready!`, which keeps Calva's default repl-requires setup and then
+#     `spit`s a readiness marker (/home/sprite/repl-ready, served by Caddy at
+#     /repl-ready) so the workspace page can hold its loading overlay up until
+#     the REPL is genuinely connected, not just until the iframe paints. The
+#     logic lives in a named fn so the string Calva echoes into the REPL on
+#     connect stays a clean one-liner, not the whole do-form. start.sh clears
 #     the marker on each REPL start so it never reads stale. The object MUST
 #     carry the full shape (both onConnect.{clj,cljs} and onFileLoaded.{clj,
 #     cljs}) even though we only use onConnect.clj: Calva's config merge reads
@@ -214,7 +216,7 @@ cat > /home/sprite/.local/share/code-server/User/settings.json <<'EOF'
   ],
   "calva.autoEvaluateCode": {
     "onConnect": {
-      "clj": "(do (when-let [requires (resolve 'clojure.main/repl-requires)] (clojure.core/apply clojure.core/require @requires)) (spit \"/home/sprite/repl-ready\" \"ok\"))",
+      "clj": "((requiring-resolve 'watch/ready!))",
       "cljs": "(require '[cljs.repl :refer [apropos dir doc find-doc print-doc pst source]])"
     },
     "onFileLoaded": {
