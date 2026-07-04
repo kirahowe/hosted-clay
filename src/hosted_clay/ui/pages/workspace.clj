@@ -6,6 +6,7 @@
    sprite is still provisioning (or if it failed) this same route shows a
    status page instead."
   (:require [hosted-clay.routes :as routes]
+            [hosted-clay.ui.assets :as assets]
             [hosted-clay.ui.layout :as layout]))
 
 (defn render [notebook base-url]
@@ -46,8 +47,8 @@
        [:section.workspace-pane.workspace-output
         [:iframe {:src   (routes/notebook-view id)
                   :title "Rendered output"}]]]
-      [:script {:src "/static/js/workspace.js"}]]
-     {:head       [:link {:rel "stylesheet" :href "/static/css/workspace.css"}]
+      [:script {:src (assets/versioned "/static/js/workspace.js")}]]
+     {:head       [:link {:rel "stylesheet" :href (assets/versioned "/static/css/workspace.css")}]
       :body-class "workspace-body"})))
 
 (defn render-source

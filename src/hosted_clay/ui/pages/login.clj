@@ -6,7 +6,8 @@
    checksum-verified against npm) and the API URL travels on a data
    attribute, so the page needs no inline script and no third-party
    CDN — it works under the site's script-src 'self' CSP."
-  (:require [hosted-clay.ui.layout :as layout]))
+  (:require [hosted-clay.ui.assets :as assets]
+            [hosted-clay.ui.layout :as layout]))
 
 (defn render [api-url]
   (layout/page
@@ -22,4 +23,4 @@
         "Sign in with a passkey or a one-time email code. New here? "
         "Signing in creates your account."]
        [:hanko-auth {:data-api-url api-url}]
-       [:script {:type "module" :src "/static/js/login.js"}]]]]]))
+       [:script {:type "module" :src (assets/versioned "/static/js/login.js")}]]]]]))

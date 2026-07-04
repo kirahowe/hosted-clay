@@ -1,6 +1,7 @@
 (ns hosted-clay.ui.layout
   (:require [hiccup2.core :as h]
-            [hosted-clay.routes :as routes]))
+            [hosted-clay.routes :as routes]
+            [hosted-clay.ui.assets :as assets]))
 
 (def ^:private description
   "Hosted Clay notebooks for Clojure data science — a real editor, a live REPL, zero setup.")
@@ -27,9 +28,9 @@
            [:meta {:name "theme-color" :content "#0d0d0f" :media "(prefers-color-scheme: dark)"}]
            [:title title]
            [:link {:rel "icon" :type "image/svg+xml" :href "/static/favicon.svg"}]
-           [:link {:rel "stylesheet" :href "/static/css/tokens.css"}]
-           [:link {:rel "stylesheet" :href "/static/css/main.css"}]
-           [:script {:src "/static/js/app.js" :defer true}]
+           [:link {:rel "stylesheet" :href (assets/versioned "/static/css/tokens.css")}]
+           [:link {:rel "stylesheet" :href (assets/versioned "/static/css/main.css")}]
+           [:script {:src (assets/versioned "/static/js/app.js") :defer true}]
            ;; Umami — privacy-preserving, cookieless analytics (see the privacy
            ;; page). Loaded on every page since every app page renders through here.
            [:script {:defer            true
