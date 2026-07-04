@@ -75,17 +75,6 @@
     (reset! @#'proxy/relays {})
     (run)))
 
-(defn- wait-for
-  "Poll `pred` until truthy or `timeout-ms` elapses (the :on-close abort runs on
-   a future, so it's observed asynchronously). Returns whether it became truthy."
-  [pred timeout-ms]
-  (let [deadline (+ (System/currentTimeMillis) timeout-ms)]
-    (loop []
-      (cond
-        (pred)                                   true
-        (>= (System/currentTimeMillis) deadline) false
-        :else                                    (do (Thread/sleep 5) (recur))))))
-
 (defn- recording-websocket
   "Stand-in for the upstream java.net.http WebSocket that records whether it was
    aborted; every other method is an inert stub."
@@ -142,18 +131,17 @@
       ((:on-open @captured) (Object.))
       (is (empty? (proxy/activity-snapshot))))))
 
-(deftest disconnect-aborts-the-upstream-socket
-  (let [captured (atom nil)
-        aborted? (atom false)
-        upstream (recording-websocket aborted?)]
-    (with-redefs [proxy/connect-upstream (fn [& _] upstream)
-                  http-server/as-channel (fn [_ cbs] (reset! captured cbs) :ok)
-                  http-server/close      (fn [c] ((:on-close @captured) c nil))]
-      (proxy/forward nil "http://sprite" "view/" ws-req {:notebook-id "nb1"})
-      ((:on-open @captured) (Object.))
-      ;; Closing the browser side must tear the upstream socket down *hard*: a
-      ;; lingering connection to the sprite's URL keeps it awake (and billing),
-      ;; which is the whole thing the idle sweep exists to prevent.
+(deftest disconnect-aborts-the-upstream-directly
+  ;; The abort is the load-bearing step (it's the connection Sprites counts) and
+  ;; must NOT hinge on the browser close firing :on-close — so stub close inert
+  ;; and confirm disconnect still aborts the sprite-side socket on its own. This
+  ;; is what the old callback-driven test couldn't see: it faked close into
+  ;; firing :on-close, so it never checked disconnect aborts without that.
+  (let [aborted? (atom false)
+        upstream (recording-websocket aborted?)
+        ch       (Object.)]
+    (with-redefs [http-server/close (fn [_])]
+      (#'proxy/register! "nb1" ch (doto (promise) (deliver upstream)))
       (proxy/disconnect-notebook! "nb1")
-      (is (wait-for #(deref aborted?) 2000)
-          "the sprite-side socket was aborted"))))
+      (is @aborted?
+          "disconnect aborted the upstream directly, without the close callback"))))

@@ -165,31 +165,37 @@
 ;; with the last time each notebook sent a browser->sprite frame (a keystroke,
 ;; an eval, a save — real user activity). The scheduler's idle sweep
 ;; (hosted-clay.idle) reads that timestamp and, once a notebook has gone quiet
-;; past the window, closes its channels. Each close fires the relay's :on-close,
-;; which aborts the matching upstream socket to the sprite — with its last
-;; inbound connection gone the sprite idle-suspends. A frozen/asleep tab sends
-;; no frames, so it goes stale and suspends; an actively-used tab keeps its
-;; timestamp fresh and never does. Only WebSocket relays register; plain HTTP
-;; can't pin the sprite (it drains on its own short keep-alive).
+;; past the window, aborts each upstream socket to the sprite *directly* (and
+;; closes the browser channel to tear the relay down). Aborting is the
+;; load-bearing step — it's the connection Sprites counts as activity — so we do
+;; it ourselves rather than closing the browser side and trusting :on-close to
+;; fire the abort, whose timing is least predictable against exactly the
+;; frozen/asleep tab this backstop is for. With its last inbound connection gone
+;; the sprite idle-suspends. A frozen/asleep tab sends no frames, so it goes
+;; stale and suspends; an actively-used tab keeps its timestamp fresh and never
+;; does. Only WebSocket relays register; plain HTTP can't pin the sprite (it
+;; drains on its own short keep-alive).
 ;;
-;; Shape: notebook-id -> {:channels #{browser-ch...} :active-at <Instant>}.
+;; Shape: notebook-id -> {:conns {browser-ch -> upstream-promise} :active-at <Instant>}.
+;; The upstream is a promise because the connect is async relative to the
+;; browser channel opening; a sweep skips one still in flight (see below).
 (defonce ^:private relays (atom {}))
 
-(defn- register! [notebook-id ch]
+(defn- register! [notebook-id ch upstream]
   (when notebook-id
     (swap! relays update notebook-id
            (fn [entry]
-             (-> (or entry {:channels #{}})
-                 (update :channels conj ch)
+             (-> (or entry {:conns {}})
+                 (assoc-in [:conns ch] upstream)
                  (assoc :active-at (Instant/now)))))))
 
 (defn- deregister! [notebook-id ch]
   (when notebook-id
     (swap! relays (fn [m]
-                    (let [remaining (disj (get-in m [notebook-id :channels]) ch)]
+                    (let [remaining (dissoc (get-in m [notebook-id :conns]) ch)]
                       (if (empty? remaining)
                         (dissoc m notebook-id)
-                        (assoc-in m [notebook-id :channels] remaining)))))))
+                        (assoc-in m [notebook-id :conns] remaining)))))))
 
 (defn- touch! [notebook-id]
   ;; Stamp a browser->sprite frame as activity. Only touches a notebook that's
@@ -206,15 +212,21 @@
    the connection opening). The idle sweep compares these against now; a notebook
    with no live relay isn't here and suspends on its own."
   []
-  (into {} (map (fn [[id {:keys [active-at]}]] [id active-at])) @relays))
+  (update-vals @relays :active-at))
 
 (defn disconnect-notebook!
-  "Close every browser channel we're relaying for `notebook-id`, so the sprite
-   loses its inbound connections and idle-suspends. Each close fires the relay's
-   :on-close, which aborts the matching upstream socket. Idempotent; a no-op
-   when nothing is held."
+  "Drop every relay we're holding for `notebook-id` so the sprite loses its
+   inbound connections and idle-suspends. For each: abort the upstream sprite
+   socket *directly* — the load-bearing step, done here rather than left to the
+   browser close firing :on-close — then close the browser channel so the relay
+   deregisters. An upstream whose connect is still in flight (promise not yet
+   delivered) is skipped without blocking; its own :on-close aborts it once it
+   resolves. `.abort` is idempotent, so a later :on-close re-abort is harmless.
+   Idempotent overall; a no-op when nothing is held."
   [notebook-id]
-  (doseq [ch (get-in @relays [notebook-id :channels])]
+  (doseq [[ch upstream] (get-in @relays [notebook-id :conns])]
+    (when-let [ws (deref upstream 0 nil)]
+      (.abort ^WebSocket ws))
     (http-server/close ch)))
 
 ;; ---------- WebSocket relay ----------
@@ -290,9 +302,12 @@
     (http-server/as-channel
      req
      {:on-open    (fn [ch]
-                    ;; Track the channel so the idle sweep can find and close it
-                    ;; if this tab goes quiet (see the relay registry above).
-                    (register! notebook-id ch)
+                    ;; Track the channel + its upstream so the idle sweep can
+                    ;; abort and close it if this tab goes quiet (see the relay
+                    ;; registry above). `upstream` is delivered by the future
+                    ;; below; storing the promise now lets the sweep abort it
+                    ;; directly once it resolves.
+                    (register! notebook-id ch upstream)
                     (future
                       (try
                         (deliver upstream

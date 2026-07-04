@@ -8,10 +8,10 @@
    (see hosted-clay.proxy), and every tick this sweep force-suspends any
    notebook whose last frame is older than `idle-minutes` — a frozen/asleep tab
    sends no frames, so it goes quiet and drops; an actively-used tab keeps its
-   timestamp fresh and is left alone. Suspending just closes the relayed
-   channels, which aborts the upstream sockets so the sprite loses its last
-   inbound connection and idle-suspends. The owner's next keystroke wakes it —
-   sub-second, REPL and editor state intact.
+   timestamp fresh and is left alone. Suspending aborts each relay's upstream
+   socket to the sprite (and closes the browser channel), so the sprite loses
+   its last inbound connection and idle-suspends. The owner's next keystroke
+   wakes it — sub-second, REPL and editor state intact.
 
    The decision is a pure function of the proxy's activity snapshot and the
    current time (`stale-ids`); `sweep!` reads the snapshot and applies it. No
@@ -37,8 +37,8 @@
 (defn sweep!
   "One idle-suspend pass. Force-suspends every notebook the proxy is relaying a
    WebSocket for whose last browser->sprite frame is older than `idle-minutes`,
-   by closing its relayed channels (which aborts the upstream sockets, so the
-   sprite loses its last inbound connection and idle-suspends). nil/0
+   by aborting each relay's upstream socket and closing its browser channel (so
+   the sprite loses its last inbound connection and idle-suspends). nil/0
    `idle-minutes` disables the sweep. Returns the set of suspended ids."
   [idle-minutes]
   (when (and idle-minutes (pos? idle-minutes))
