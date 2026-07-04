@@ -588,7 +588,14 @@ footer.site nav a:not(.button):hover { color: var(--fg); }
 
 hanko-auth {
   display: block;
-  max-width: 22rem;
+  /* A definite width, not just a cap. <hanko-auth> is a flex item of the
+     centred .status-card (align-items: center), so with only a max-width it
+     hugs its content and shrinks on the screens where Hanko doesn't stretch
+     its rows (method-select / passcode / password / passkey), rendering
+     narrower than the email screen. Pinning the width holds every screen at
+     one measure; max-width: 100% still lets it shrink on narrow viewports. */
+  width: 22rem;
+  max-width: 100%;
   --color: var(--fg);
   --color-shade-1: var(--fg-muted);
   --color-shade-2: var(--border);
