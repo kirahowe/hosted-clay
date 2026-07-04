@@ -108,8 +108,10 @@ hiccup), state in file-backed SQLite on a Fly volume. It owns:
   carries a strict CSP (`script-src 'self'` — nothing is inline; the login
   island is a static module and destructive-form confirms are
   `data-confirm` hooks in app.js), `X-Frame-Options: SAMEORIGIN`, nosniff,
-  a referrer policy, and (on https) HSTS. The proxied prefixes (`/n/`,
-  `/s/`) get only HSTS — their header policy belongs to the proxy. The
+  a referrer policy, and (on https) HSTS. The proxied surfaces
+  (`/n/:id/view/*`, `/n/:id/edit/*`, `/s/*`) get only HSTS — their header
+  policy belongs to the proxy; the rest of `/n/:id` (the workspace page and
+  its control actions) is the app's own HTML and gets the full set. The
   hanko-elements bundle is vendored under `/static/js/vendor` (pinned,
   checksum-verified against npm), so the sign-in page executes no code
   fetched live from a third-party CDN.
