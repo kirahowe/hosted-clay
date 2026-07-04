@@ -76,14 +76,16 @@ hiccup), state in file-backed SQLite on a Fly volume. It owns:
   from it, not the sprite. The census captures two files Clay already maintains
   on every save — the `.clj` source and the *self-contained* rendered
   `docs/notebook.html` (Clay injects the live-reload socket only at serve-time,
-  not into the file, so it's portable as-is) — into a `notebook_snapshots`
-  side table (a side table, so the frequent `SELECT *` over `notebooks` skips
-  the blobs). It only reads notebooks whose sprite is *already* awake, so a
-  snapshot never causes a wake, and it's throttled by `snapshot-refresh-minutes`.
-  Capture is hash-gated to keep recurring transfer near zero: each pass runs
-  one tiny `sha256sum` exec and `cat`s only a file whose hash changed since
-  the stored copy, and the staleness probe reads only `captured_at`, never
-  the blob columns.
+  not into the file, so it's portable as-is) — over plain HTTP from the
+  sprite Caddy's `/snapshot/*` routes, storing them as files under
+  `snapshots-dir` on the volume; only the capture timestamp and the files'
+  ETags live in the `notebook_snapshots` side table. It only reads notebooks
+  whose sprite is *already* awake, so a snapshot never causes a wake, and
+  it's throttled by `snapshot-refresh-minutes`. Each fetch revalidates with
+  `If-None-Match` against the ETag from the last capture, so an unchanged
+  file answers 304 and is never re-shipped — the recurring refresh costs
+  two tiny conditional GETs per awake notebook, not a ~1 MB re-stream of
+  the same render every window.
   The share view (`/s/:token/`) then serves the stored HTML with zero sprite
   contact — so it costs nothing, never wakes the sprite, and works even while
   the notebook is paused; it falls back to the live proxy only until the first

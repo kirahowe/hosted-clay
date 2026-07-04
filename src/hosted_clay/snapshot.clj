@@ -63,13 +63,14 @@
         (neg? (compare (:notebook-snapshots/captured-at snapshot) cutoff)))))
 
 (defn- store!
-  "Upsert the snapshot row for `notebook-id`, stamping `captured-at`. The insert
-   can race a concurrent capture of the same notebook (two overlapping census
-   ticks before the first row exists); a lost race shows up as a UNIQUE
-   violation, which we fold into the update — the same convergence pattern as
+  "Upsert the snapshot row for `notebook-id`, stamping `captured-at` and
+   merging in `attrs` (the file ETags). The insert can race a concurrent
+   capture of the same notebook (two overlapping census ticks before the
+   first row exists); a lost race shows up as a UNIQUE violation, which we
+   fold into the update — the same convergence pattern as
    notebooks/insert-notebook!."
-  [ds notebook-id]
-  (let [attrs    {:captured-at (crud/now)}
+  [ds notebook-id attrs]
+  (let [attrs    (assoc attrs :captured-at (crud/now))
         update-1 #(crud/update-where! ds :notebook-snapshots [:= :notebook-id notebook-id] attrs)]
     (if (for-notebook ds notebook-id)
       (update-1)
@@ -99,50 +100,73 @@
         (Files/deleteIfExists tmp)))))
 
 (defn- fetch-file!
-  "GET `path` from the sprite and write the body to `dest` atomically. Returns
-   true on a 200, else false — leaving any existing file intact. `:keepalive -1`
-   drops the connection at once so this background read can't pin the sprite
-   awake past the moment it runs."
-  [client sprite-url path ^File dest]
-  (let [url (str sprite-url path)
-        {:keys [status body error]}
+  "GET `path` from the sprite and write the body to `dest` atomically —
+   conditionally when we hold a validator: `etag` (from the last capture) is
+   sent as If-None-Match, so an unchanged file answers 304 with no body and
+   the refresh costs bytes of headers instead of a ~1 MB re-stream. The
+   validator is only sent while `dest` still exists — if the local file is
+   gone (a wiped volume with the DB intact), a 304 would leave nothing to
+   serve, so we re-fetch in full. Returns {:ok? bool :etag validator}:
+   200 → written, with the response's ETag (nil if the server sent none);
+   304 → untouched, keeping `etag`; anything else → {:ok? false}, leaving
+   any existing file intact. `:keepalive -1` drops the connection at once so
+   this background read can't pin the sprite awake past the moment it runs."
+  [client sprite-url path ^File dest etag]
+  (let [url  (str sprite-url path)
+        etag (when (.exists dest) etag)
+        {:keys [status headers body error]}
         @(http/request {:method           :get
                         :url              url
-                        :headers          {"Authorization" (sprites/bearer client)}
+                        :headers          (cond-> {"Authorization" (sprites/bearer client)}
+                                            etag (assoc "if-none-match" etag))
                         :as               :stream
                         :keepalive        -1
                         :timeout          60000
                         :follow-redirects false})]
     (cond
       error
-      (do (log/warn error "snapshot fetch failed" {:url url}) false)
+      (do (log/warn error "snapshot fetch failed" {:url url}) {:ok? false})
+
+      (= 304 status)
+      (do (when (instance? InputStream body) (.close ^InputStream body))
+          {:ok? true :etag etag})
 
       (not= 200 status)
       (do (when (instance? InputStream body) (.close ^InputStream body))
           (log/warn "snapshot fetch returned non-200" {:url url :status status})
-          false)
+          {:ok? false})
 
       :else
-      (do (write-file! body dest) true))))
+      (do (write-file! body dest)
+          {:ok? true :etag (:etag headers)}))))
 
 (defn capture!
   "Snapshot a notebook's last render and raw source from its sprite and store
-   them as files under `snapshots-dir`. Best-effort: logs and returns nil on any
-   failure — it must never break the census. The sprite must already be awake
-   (the census only calls this for awake notebooks), so the GETs never cause a
-   wake. Only files that fetch cleanly are rewritten, so a momentarily missing
-   file leaves the prior snapshot intact."
+   them as files under `snapshots-dir`, revalidating with the ETags from the
+   last capture so an unchanged file is never re-shipped (see `fetch-file!`).
+   Best-effort: logs and returns nil on any failure — it must never break the
+   census. The sprite must already be awake (the census only calls this for
+   awake notebooks), so the GETs never cause a wake. Only files that fetch
+   cleanly are rewritten, so a momentarily missing file leaves the prior
+   snapshot intact."
   [ds client snapshots-dir notebook]
   (try
     (let [id         (:notebooks/id notebook)
-          sprite-url (:notebooks/sprite-url notebook)]
+          sprite-url (:notebooks/sprite-url notebook)
+          stored     (for-notebook ds id)]
       (.mkdirs (io/file snapshots-dir))
-      (let [html? (fetch-file! client sprite-url render-path (html-file snapshots-dir id))
-            src?  (fetch-file! client sprite-url source-path (source-file snapshots-dir id))]
-        (when (or html? src?)
-          (store! ds id)
+      (let [html (fetch-file! client sprite-url render-path (html-file snapshots-dir id)
+                              (:notebook-snapshots/html-etag stored))
+            src  (fetch-file! client sprite-url source-path (source-file snapshots-dir id)
+                              (:notebook-snapshots/source-etag stored))]
+        (when (or (:ok? html) (:ok? src))
+          ;; Both validators are (re)written every capture — a nil clears a
+          ;; stale one (e.g. the server stopped sending ETags), so the next
+          ;; pass falls back to a full GET rather than revalidating against
+          ;; a validator the server no longer recognises.
+          (store! ds id {:html-etag (:etag html) :source-etag (:etag src)})
           (log/info "notebook snapshot captured"
-                    {:notebook-id id :render html? :source src?})
+                    {:notebook-id id :render (:ok? html) :source (:ok? src)})
           true)))
     (catch Throwable t
       (log/error t "notebook snapshot failed"
