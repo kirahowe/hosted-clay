@@ -46,6 +46,33 @@ The SQLite file lives on a single Fly volume, so back it up two ways:
 - **Fly volume snapshots** (coarse safety net): taken daily automatically;
   raise retention with `fly volumes update <id> --snapshot-retention 14`.
 
+### Inspecting the prod database
+
+For a quick read-only look (e.g. "is that sprite the warm pool or an orphan?"),
+`fly ssh` in and query with the JVM and uberjar already on the machine. The
+runtime image is JRE-only (no `sqlite3` CLI), but the uberjar bundles the same
+`sqlite-jdbc` the app uses, so nothing needs installing:
+
+```
+fly ssh console -a hosted-clay
+java --enable-native-access=ALL-UNNAMED -cp /app/hosted-clay.jar clojure.main -e '
+(require (quote [next.jdbc :as jdbc]))
+(run! prn (jdbc/execute! (jdbc/get-datasource "jdbc:sqlite:/data/hosted-clay.db")
+                         ["SELECT sprite_name, state FROM sprite_pool"]))'
+```
+
+Swap the SQL for whatever you need. Reads are safe against the live app: WAL mode
+lets a reader run without blocking (or being blocked by) the app's writer, so a
+`SELECT` never contends. `--enable-native-access=ALL-UNNAMED` only silences
+sqlite-jdbc's native-load warnings (same flag as the `:admin` alias); the query
+works without it.
+
+Don't `apt-get install sqlite3` on the machine — it works, but the rootfs is
+ephemeral, so it re-downloads ~25 MB on every restart. For anything heavier than
+a quick read, pull a consistent copy locally instead of touching the live file:
+`litestream restore` from the backup bucket (see **Backups**), then query
+`./prod.db` with `sqlite3` or `clojure -M:admin --env prod --db-path ./prod.db`.
+
 ### Email
 
 Idle-notebook warnings only *count* when they're actually delivered:
