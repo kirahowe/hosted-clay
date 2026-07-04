@@ -57,12 +57,12 @@
 (defn log!
   "Log a census map from `gather`. INFO every run; WARN when the running count
    reaches the concurrency soft-cap or the total nears the registration ceiling.
-   Drops `:awake-notebooks` from the line — it's for metering, not logging."
+   Drops `:awake-notebooks` from the line — it's for metering, not logging. The
+   caps aren't echoed on the INFO line: they're static config, logged once at
+   scheduler start, and repeated in the WARNs below when a threshold is crossed."
   [census {:keys [max-sprites max-running]}]
   (let [{:keys [total running]} census]
-    (log/info "sprite census" (-> census
-                                  (dissoc :awake-notebooks)
-                                  (assoc :max-sprites max-sprites :max-running max-running)))
+    (log/info "sprite census" (dissoc census :awake-notebooks))
     (when (and max-running (>= running max-running))
       (log/warn "sprites awake at/over the concurrency soft-cap"
                 {:running running :max-running max-running}))
