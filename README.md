@@ -22,20 +22,27 @@ org token).
 
 `bb deploy` (flyctl). One always-on Fly machine with a volume mounted at
 `/data` for the SQLite file. Secrets: `SPRITES_TOKEN`, `HANKO_API_URL`,
-`BASE_URL`, optionally `RESEND_API_KEY` + `EMAIL_FROM`.
+`BASE_URL`, optionally `RESEND_API_KEY` + `EMAIL_FROM`, plus the Litestream
+backup secrets (see **Backups** below).
 
 ### Backups
 
 The SQLite file lives on a single Fly volume, so back it up two ways:
 
-- **Litestream** (point-in-time recovery, strongly recommended): set the
-  `LITESTREAM_REPLICA_URL` secret (an S3-compatible URL, e.g.
-  `s3://my-bucket/hosted-clay`; for R2/MinIO/B2 embed the endpoint:
-  `s3://BUCKET.ENDPOINT/hosted-clay`) plus `LITESTREAM_ACCESS_KEY_ID` and
-  `LITESTREAM_SECRET_ACCESS_KEY`. The container then streams every write to
-  the bucket and, on boot with an empty volume, restores the latest
-  replica automatically (see `docker/start.sh`). Without the secret the app
-  runs fine but warns loudly that the database exists only on the volume.
+- **Litestream** (point-in-time recovery, strongly recommended): stream the
+  SQLite file to an S3-compatible bucket. On Fly the easiest bucket is Tigris —
+  `fly storage create` provisions one and sets its `AWS_ACCESS_KEY_ID` /
+  `AWS_SECRET_ACCESS_KEY` as app secrets, which Litestream reads automatically;
+  then set `LITESTREAM_REPLICA_URL` to
+  `s3://<bucket>?endpoint=fly.storage.tigris.dev&region=auto`. For another S3
+  provider (R2, B2, MinIO) swap in that provider's `endpoint=` host and also set
+  `LITESTREAM_ACCESS_KEY_ID` / `LITESTREAM_SECRET_ACCESS_KEY`. Pass the endpoint
+  and region as URL query params — a bare `s3://bucket.host/path` is treated as
+  AWS S3, so the endpoint must be explicit. The container then replicates every
+  change to the bucket and, on boot with an empty volume, restores the latest
+  replica automatically (see `docker/start.sh`).
+  Without the secret the app runs fine but warns loudly that the database
+  exists only on the volume.
 - **Fly volume snapshots** (coarse safety net): taken daily automatically;
   raise retention with `fly volumes update <id> --snapshot-retention 14`.
 

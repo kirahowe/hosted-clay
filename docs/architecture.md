@@ -102,7 +102,7 @@ hiccup), state in file-backed SQLite on a Fly volume. It owns:
   email can never delete a notebook unannounced.
 - **Backups** — Litestream runs inside the container whenever the
   `LITESTREAM_REPLICA_URL` secret is set (`docker/start.sh`): it restores
-  the newest replica onto an empty volume at boot and streams every write
+  the newest replica onto an empty volume at boot and replicates every change
   to the bucket while the app runs. Fly's automatic daily volume snapshots
   are the coarse fallback. See the README's Deploy section.
 - **Security headers** (`hosted-clay.web.security-headers`) — wraps the

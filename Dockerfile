@@ -15,7 +15,7 @@ RUN clojure -T:build uberjar
 # Litestream streams the SQLite file to an S3-compatible bucket for
 # point-in-time recovery; docker/start.sh only engages it when the
 # LITESTREAM_REPLICA_URL secret is present.
-FROM litestream/litestream:0.3.13 AS litestream
+FROM litestream/litestream:0.5.13 AS litestream
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app
