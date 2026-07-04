@@ -18,6 +18,11 @@
         com.cnuernber/charred             {:mvn/version "1.038"}}
 
  :aliases
+ ;; Every alias that boots the app (or just its db) loads sqlite-jdbc, whose
+ ;; System::load of its native lib trips Java 24+'s restricted-native-access
+ ;; warnings; those aliases each grant the classpath (the unnamed module)
+ ;; native access via :jvm-opts to silence them. (The prod uberjar does the
+ ;; same in docker/start.sh.)
  {:dev    {:extra-paths ["env/dev/src" "env/dev/resources"]
            ;; SLF4J API rides in transitively via Clay/noj (dev-only — the app
            ;; itself never renders notebooks; the sprites do), with no provider,
@@ -35,11 +40,13 @@
            ;; Boots the dev system AND a cider-nrepl, advertising
            ;; .nrepl-port (see hosted-clay.dev.main) so `bb dev`, `bb
            ;; repl`, and an editor jack-in all converge on one JVM.
+           :jvm-opts    ["--enable-native-access=ALL-UNNAMED"]
            :main-opts   ["-m" "hosted-clay.dev.main"]}
 
   :test   {:extra-paths ["test" "env/test/resources"]
            :extra-deps  {lambdaisland/kaocha {:mvn/version "1.91.1392"}
                          ring/ring-mock      {:mvn/version "0.6.2"}}
+           :jvm-opts    ["--enable-native-access=ALL-UNNAMED"]
            :main-opts   ["-m" "kaocha.runner"]}
 
   ;; Main-opts-only overlay: combined LAST (after :dev:test) so its REPL
@@ -52,13 +59,16 @@
                        "--interactive"]}
 
   :prod   {:extra-paths ["env/prod/resources"]
+           :jvm-opts    ["--enable-native-access=ALL-UNNAMED"]
            :main-opts   ["-m" "hosted-clay.main" "prod.edn"]}
 
   ;; Read-only admin usage CLI/TUI. Puts BOTH env overlays on the classpath
   ;; so --env dev|prod resolves its overlay via io/resource. charm.clj backs
-  ;; the TUI; the plain (--plain) path needs none of it.
+  ;; the TUI; the plain (--plain) path needs none of it. The native-access
+  ;; :jvm-opt matters doubly here — a stray sqlite warning corrupts the TUI.
   :admin  {:extra-paths ["env/dev/resources" "env/prod/resources"]
            :extra-deps  {de.timokramer/charm.clj {:mvn/version "0.2.71"}}
+           :jvm-opts    ["--enable-native-access=ALL-UNNAMED"]
            :main-opts   ["-m" "hosted-clay.admin.cli"]}
 
   :lint   {:replace-deps {clj-kondo/clj-kondo {:mvn/version "2026.04.15"}}

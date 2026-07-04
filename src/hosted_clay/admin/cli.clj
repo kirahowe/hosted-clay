@@ -14,14 +14,19 @@
 (def ^:private usage-text
   (str/join
    "\n"
-   ["Usage: clojure -M:admin [options]"
+   ["Usage: bb admin [options]"
     ""
-    "  --env dev|prod      which deployment's config to read (default: dev)"
+    "  --env dev|prod      deployment to read + the report label (default: dev)"
+    "  --db-path PATH      read this SQLite file directly instead of the config's"
     "  --cpus N            assumed CPUs per sprite for the spend estimate (default: 1)"
     "  --gb-ram N          assumed GB resident RAM per sprite (default: 1)"
-    "  --db-path PATH      override the SQLite file from the config"
     "  --plain             force the plain table (no TUI)"
-    "  --help              show this help"]))
+    "  --help              show this help"
+    ""
+    "Prod's database lives on the Fly volume, so report on a local copy of it."
+    "With --db-path given, --env just labels the report (no prod env vars read):"
+    "  fly ssh sftp get /data/hosted-clay.db ./prod.db"
+    "  bb admin --env prod --db-path ./prod.db"]))
 
 (defn- parse-num
   "Parse a numeric flag value, keeping a whole number integral (so `2` prints

@@ -20,7 +20,10 @@
 set -euo pipefail
 
 DB_PATH=/data/hosted-clay.db
-APP="java -cp /app/conf:/app/hosted-clay.jar hosted_clay.main prod.edn"
+# --enable-native-access=ALL-UNNAMED grants the classpath native access so
+# sqlite-jdbc's System::load of its native lib doesn't spew Java 24+'s
+# restricted-native-access warnings on every boot (mirrors deps.edn's aliases).
+APP="java --enable-native-access=ALL-UNNAMED -cp /app/conf:/app/hosted-clay.jar hosted_clay.main prod.edn"
 
 if [ -n "${LITESTREAM_REPLICA_URL:-}" ]; then
   exec litestream replicate -log-level warn -restore-if-db-not-exists \
