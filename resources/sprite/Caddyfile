@@ -24,6 +24,24 @@
 		file_server
 	}
 
+	# Pristine static reads for the control plane's snapshot capture: the last
+	# rendered notebook and its source, served straight from disk so Clay's
+	# live-reload is never injected (unlike the catch-all Clay route below).
+	# Exact paths only, so nothing else under the notebook dir is exposed. Only
+	# the control plane — which holds the API token — ever calls these; the
+	# public share view is served from the control plane and never proxies here.
+	handle /snapshot/notebook.html {
+		root * /home/sprite/notebook/docs
+		rewrite * /notebook.html
+		file_server
+	}
+
+	handle /snapshot/notebook.clj {
+		root * /home/sprite/notebook
+		rewrite * /notebook.clj
+		file_server
+	}
+
 	handle {
 		reverse_proxy 127.0.0.1:1971
 	}

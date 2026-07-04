@@ -2,7 +2,8 @@
   "Notebook domain tests. The Sprites API edge is stubbed with
    with-redefs — these tests are about our orchestration (pool claim,
    one-per-user, lifecycle bookkeeping), not the wire."
-  (:require [clojure.string :as str]
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [integrant.core :as ig]
             [hosted-clay.db.crud :as crud]
@@ -11,12 +12,14 @@
             [hosted-clay.proxy :as proxy]
             [hosted-clay.snapshot :as snapshot]
             [hosted-clay.sprites.client :as sprites]
-            [hosted-clay.sprites.exec :as exec]
             [hosted-clay.sprites.provision :as provision]
             [hosted-clay.test-system :as ts]
             [hosted-clay.usage :as usage]
-            [hosted-clay.users :as users])
-  (:import (java.time Duration Instant)))
+            [hosted-clay.users :as users]
+            [org.httpkit.client :as http])
+  (:import (java.nio.file Files)
+           (java.nio.file.attribute FileAttribute)
+           (java.time Duration Instant)))
 
 ;; Load the handlers ns for its ig/init-key defmethods (the proxy handler under
 ;; test); required for the side effect, so it's not an aliased ns require.
@@ -74,16 +77,22 @@
                                  (notebooks/create! ds client {:max-sprites 0}
                                                     (:users/id user) "T")))))))))
 
-(deftest delete-removes-sprite-then-row
+(deftest delete-removes-sprite-then-row-and-snapshot-files
   (ts/with-db
     (fn [ds]
       (stub-sprites
        (fn [deleted]
          (let [user (make-user ds)
-               nb   (notebooks/create! ds client limits (:users/id user) "T")]
-           (notebooks/delete! ds client nb)
+               nb   (notebooks/create! ds client limits (:users/id user) "T")
+               id   (:notebooks/id nb)
+               dir  (str (Files/createTempDirectory "snap" (make-array FileAttribute 0)))]
+           (spit (snapshot/html-file dir id) "<html>x</html>")
+           (spit (snapshot/source-file dir id) "(ns x)")
+           (notebooks/delete! ds client dir nb)
            (is (= [(:notebooks/sprite-name nb)] @deleted))
-           (is (nil? (notebooks/by-id ds (:notebooks/id nb))))))))))
+           (is (nil? (notebooks/by-id ds id)))
+           (is (not (.exists (snapshot/html-file dir id))) "snapshot html file removed")
+           (is (not (.exists (snapshot/source-file dir id))) "snapshot source file removed")))))))
 
 (deftest touch-throttles-and-clears-warning
   (ts/with-db
@@ -223,15 +232,20 @@
          (let [user    (make-user ds)
                nb      (notebooks/create! ds client limits (:users/id user) "T")
                id      (:notebooks/id nb)
-               handler (ig/init-key :hosted-clay.handlers.notebooks/source {:datasource ds})
+               dir     (str (Files/createTempDirectory "snap" (make-array FileAttribute 0)))
+               handler (ig/init-key :hosted-clay.handlers.notebooks/source
+                                    {:datasource ds :snapshots-dir dir})
                req     {:user-id (:users/id user) :path-params {:id id}}]
            (testing "before any snapshot, a friendly pending message"
              (let [resp (handler req)]
                (is (= 200 (:status resp)))
                (is (str/includes? (:body resp) "captured a snapshot of this notebook yet"))))
            (testing "after a snapshot, the stored source is shown — even over the limit"
-             (with-redefs [exec/exec! (fn [_ _ _ & _] {:exit 0 :out "(ns notebook)\n42" :err ""})]
-               (snapshot/capture! ds client nb))
+             (with-redefs [http/request (fn [_]
+                                          (doto (promise)
+                                            (deliver {:status 200
+                                                      :body   (io/input-stream (.getBytes "(ns notebook)\n42" "UTF-8"))})))]
+               (snapshot/capture! ds client dir nb))
              (crud/create! ds :user-usage {:user-id     (:users/id user)
                                            :usage-month (usage/current-month)
                                            :awake-seconds (* 99 3600)})

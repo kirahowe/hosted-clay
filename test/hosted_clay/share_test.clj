@@ -1,11 +1,13 @@
 (ns hosted-clay.share-test
-  "The read-only share view: once a notebook has a rendered snapshot, /s/ serves
-   that static HTML straight from the control plane (no sprite contact, works
-   while paused); until then it falls back to the live proxy. proxy/forward is
-   stubbed so we can assert when the sprite is — and isn't — touched. The view is
-   keyed on the share token (separate from the notebook id), so the path-param is
-   that token."
-  (:require [clojure.string :as str]
+  "The read-only share view: once a notebook has a rendered snapshot, /s/ streams
+   that static HTML file straight from the control-plane volume (no sprite
+   contact, works while paused); until then it falls back to the live proxy.
+   proxy/forward is stubbed so we can assert when the sprite is — and isn't —
+   touched, and the capture's HTTP fetch is stubbed so a snapshot lands as a
+   file. The view is keyed on the share token (separate from the notebook id),
+   so the path-param is that token."
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [integrant.core :as ig]
             [hosted-clay.db.crud :as crud]
@@ -13,15 +15,23 @@
             [hosted-clay.proxy :as proxy]
             [hosted-clay.snapshot :as snapshot]
             [hosted-clay.sprites.client :as sprites]
-            [hosted-clay.sprites.exec :as exec]
             [hosted-clay.sprites.provision :as provision]
             [hosted-clay.test-system :as ts]
             [hosted-clay.usage :as usage]
-            [hosted-clay.users :as users]))
+            [hosted-clay.users :as users]
+            [org.httpkit.client :as http])
+  (:import (java.nio.file Files)
+           (java.nio.file.attribute FileAttribute)))
 
 (require 'hosted-clay.handlers.share)
 
 (def client {:api-url "https://api.example.invalid" :token {:value "t"}})
+
+(defn- temp-dir []
+  (str (Files/createTempDirectory "snap" (make-array FileAttribute 0))))
+
+(defn- delete-dir! [dir]
+  (run! #(io/delete-file % true) (reverse (file-seq (io/file dir)))))
 
 (defn- with-ready-notebook [f]
   (ts/with-db
@@ -32,31 +42,43 @@
         (let [user (users/provision! ds {:provider "hanko" :provider-subject "s"
                                          :email "kira@example.com"})
               nb   (notebooks/create! ds client {:max-sprites 10} (:users/id user) "T")
-              id   (:notebooks/id nb)]
+              id   (:notebooks/id nb)
+              dir  (temp-dir)]
           (crud/update! ds :notebooks id {:status "ready" :sprite-url "https://nb.sprites.test"})
-          (f ds (notebooks/by-id ds id)))))))
+          (try (f ds (notebooks/by-id ds id) dir)
+               (finally (delete-dir! dir))))))))
 
-(defn- snapshot-html! [ds nb html]
-  (with-redefs [exec/exec! (fn [_ _ cmd & _]
-                             {:exit 0 :err ""
-                              :out  (if (str/ends-with? (last cmd) ".html") html "(ns notebook)")})]
-    (snapshot/capture! ds client nb)))
+(defn- snapshot-html!
+  "Capture a snapshot whose rendered .html is `html`, writing files into `dir`."
+  [ds dir nb html]
+  (with-redefs [http/request (fn [{:keys [url]}]
+                               (let [body (if (str/ends-with? url ".html") html "(ns notebook)")]
+                                 (doto (promise)
+                                   (deliver {:status 200
+                                             :body   (io/input-stream (.getBytes ^String body "UTF-8"))}))))]
+    (snapshot/capture! ds client dir nb)))
 
-(defn- share-handler [ds]
+(defn- share-handler [ds dir]
   (ig/init-key :hosted-clay.handlers/share
-               {:datasource ds :sprites-client client :usage-limit-hours 50}))
+               {:datasource ds :sprites-client client :usage-limit-hours 50 :snapshots-dir dir}))
+
+(defn- body-str
+  "The response body as a string — reading the File the static snapshot streams."
+  [resp]
+  (let [b (:body resp)]
+    (if (instance? java.io.File b) (slurp b) b)))
 
 (defn- over-limit! [ds nb]
-  (crud/create! ds :user-usage {:user-id     (:notebooks/user-id nb)
-                                :usage-month (usage/current-month)
+  (crud/create! ds :user-usage {:user-id       (:notebooks/user-id nb)
+                                :usage-month   (usage/current-month)
                                 :awake-seconds (* 99 3600)}))
 
 (deftest share-prefers-the-static-snapshot
   (with-ready-notebook
-    (fn [ds nb]
+    (fn [ds nb dir]
       (let [token     (:notebooks/share-token nb)
             forwarded (atom 0)
-            handler   (share-handler ds)
+            handler   (share-handler ds dir)
             get-doc   #(handler {:request-method :get :path-params {:token token :path ""}})]
         (with-redefs [proxy/forward (fn [& _] (swap! forwarded inc) {:status 200 :body "LIVE"})]
           (testing "no snapshot yet → falls back to the live proxy"
@@ -64,25 +86,25 @@
               (is (= 200 (:status resp)))
               (is (= 1 @forwarded))))
           (testing "with a snapshot → serves the static html, never touching the sprite"
-            (snapshot-html! ds nb "<html>SNAPSHOT</html>")
+            (snapshot-html! ds dir nb "<html>SNAPSHOT</html>")
             (let [resp (get-doc)]
               (is (= 200 (:status resp)))
-              (is (str/includes? (:body resp) "<html>SNAPSHOT</html>"))
+              (is (str/includes? (body-str resp) "<html>SNAPSHOT</html>"))
               (is (= 1 @forwarded) "the static path did not proxy")))
           (testing "the static snapshot is served even when the owner is over the limit"
             (over-limit! ds nb)
             (let [resp (get-doc)]
               (is (= 200 (:status resp)))
-              (is (str/includes? (:body resp) "SNAPSHOT"))
+              (is (str/includes? (body-str resp) "SNAPSHOT"))
               (is (= 1 @forwarded) "still no proxy — no wake, no bill"))))))))
 
 (deftest share-pauses-over-limit-without-a-snapshot
   (with-ready-notebook
-    (fn [ds nb]
+    (fn [ds nb dir]
       (over-limit! ds nb)
       (let [token     (:notebooks/share-token nb)
             forwarded (atom 0)
-            handler   (share-handler ds)]
+            handler   (share-handler ds dir)]
         (with-redefs [proxy/forward (fn [& _] (swap! forwarded inc) {:status 200})]
           (testing "no snapshot and over the limit → 503, and the sprite is left alone"
             (let [resp (handler {:request-method :get :path-params {:token token :path ""}})]
@@ -91,14 +113,14 @@
 
 (deftest share-snapshot-sets-no-cache-and-strips-head-body
   (with-ready-notebook
-    (fn [ds nb]
+    (fn [ds nb dir]
       (let [token   (:notebooks/share-token nb)
-            handler (share-handler ds)]
-        (snapshot-html! ds nb "<html>SNAP</html>")
+            handler (share-handler ds dir)]
+        (snapshot-html! ds dir nb "<html>SNAP</html>")
         (testing "GET carries no-cache so a viewer always revalidates"
           (let [resp (handler {:request-method :get :path-params {:token token :path ""}})]
             (is (= "no-cache" (get-in resp [:headers "cache-control"])))
-            (is (str/includes? (:body resp) "SNAP"))))
+            (is (str/includes? (body-str resp) "SNAP"))))
         (testing "HEAD gets the headers but not the (large) body"
           (let [resp (handler {:request-method :head :path-params {:token token :path ""}})]
             (is (= 200 (:status resp)))
@@ -107,11 +129,11 @@
 
 (deftest share-blocks-the-live-fallback-when-suspended
   (with-ready-notebook
-    (fn [ds nb]
+    (fn [ds nb dir]
       (notebooks/suspend! ds nb)
       (let [token     (:notebooks/share-token nb)
             forwarded (atom 0)
-            handler   (share-handler ds)
+            handler   (share-handler ds dir)
             get-doc   #(handler {:request-method :get :path-params {:token token :path ""}})]
         (with-redefs [proxy/forward (fn [& _] (swap! forwarded inc) {:status 200})]
           (testing "no snapshot + suspended → 503, the sprite is left asleep"
@@ -119,22 +141,22 @@
               (is (= 503 (:status resp)))
               (is (zero? @forwarded))))
           (testing "a snapshot still serves (free, no wake) even while suspended"
-            (snapshot-html! ds nb "<html>SNAP</html>")
+            (snapshot-html! ds dir nb "<html>SNAP</html>")
             (let [resp (get-doc)]
               (is (= 200 (:status resp)))
-              (is (str/includes? (:body resp) "SNAP"))
+              (is (str/includes? (body-str resp) "SNAP"))
               (is (zero? @forwarded)))))))))
 
 (deftest share-refuses-non-get-and-the-editor
   (with-ready-notebook
-    (fn [ds nb]
+    (fn [ds nb dir]
       (let [token   (:notebooks/share-token nb)
-            handler (share-handler ds)]
+            handler (share-handler ds dir)]
         (testing "a non-GET method is 405"
           (is (= 405 (:status (handler {:request-method :post
                                         :path-params {:token token :path ""}})))))
         (testing "the editor path is 403 even with a snapshot present"
-          (snapshot-html! ds nb "<html>x</html>")
+          (snapshot-html! ds dir nb "<html>x</html>")
           (is (= 403 (:status (handler {:request-method :get
                                         :path-params {:token token :path "edit/"}})))))
         (testing "an unknown token is a 404"

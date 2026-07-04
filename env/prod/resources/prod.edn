@@ -1,7 +1,9 @@
 {:hosted-clay.concerns/http-kit {:opts {:port #env/long ["PORT" 8080]}}
 
- ;; The SQLite file lives on the Fly volume mounted at /data.
+ ;; The SQLite file and the snapshot files both live on the Fly volume mounted
+ ;; at /data, so they persist across deploys and machine restarts.
  :hosted-clay.db/datasource {:db-path "/data/hosted-clay.db"}
+ :hosted-clay/snapshots-dir "/data/snapshots"
 
  ;; The public origin (e.g. https://notebooks.example.com), set as a Fly
  ;; env var. Drives share links, warning emails, and the CSRF check.

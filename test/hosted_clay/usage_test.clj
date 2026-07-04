@@ -107,7 +107,7 @@
         (is (usage/user-over-limit? ds uid 2) "over the limit before deletion")
 
         (testing "deleting the notebook leaves the user's usage intact"
-          (notebooks/delete! ds client (notebooks/for-user ds uid))
+          (notebooks/delete! ds client "target/test/snapshots" (notebooks/for-user ds uid))
           (is (nil? (notebooks/for-user ds uid)) "notebook really gone")
           (is (= 7200 (usage/awake-seconds-this-month ds uid))
               "usage is on the user, not the deleted notebook"))

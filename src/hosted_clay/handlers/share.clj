@@ -29,21 +29,25 @@
     (or (str/blank? p) (= p "index.html"))))
 
 (defn- snapshot-response
-  "Serve the stored render as the document. `no-cache` so a viewer always
+  "Serve the stored render `file` as the document, streamed straight from the
+   control-plane volume (no sprite contact). `no-cache` so a viewer always
    revalidates and never sees a render older than the latest snapshot; a HEAD
    gets the headers without the (~MB) body."
-  [req html]
-  (cond-> (assoc-in (response/html html) [:headers "cache-control"] "no-cache")
+  [req ^java.io.File file]
+  (cond-> {:status  200
+           :headers {"content-type"  "text/html; charset=utf-8"
+                     "cache-control" "no-cache"}
+           :body    file}
     (= :head (:request-method req)) (assoc :body "")))
 
 (defmethod ig/init-key :hosted-clay.handlers/share
-  [_ {:keys [datasource sprites-client usage-limit-hours]}]
+  [_ {:keys [datasource sprites-client usage-limit-hours snapshots-dir]}]
   (fn [req]
-    (let [notebook (notebooks/by-share-token datasource (get-in req [:path-params :token]))
-          path     (get-in req [:path-params :path])
-          html     (when notebook
-                     (:notebook-snapshots/html
-                      (snapshot/for-notebook datasource (:notebooks/id notebook))))]
+    (let [notebook  (notebooks/by-share-token datasource (get-in req [:path-params :token]))
+          path      (get-in req [:path-params :path])
+          html-file (when notebook
+                      (snapshot/html-file snapshots-dir (:notebooks/id notebook)))
+          captured? (boolean (and html-file (.exists ^java.io.File html-file)))]
       (cond
         (nil? notebook)
         (response/not-found "This share link doesn't point anywhere (anymore).")
@@ -54,15 +58,15 @@
         (editor-path? path)
         (response/forbidden "The editor isn't part of the read-only view.")
 
-        ;; Prefer the static snapshot: the last rendered notebook, served from
+        ;; Prefer the static snapshot: the last rendered notebook, streamed from
         ;; the control plane with no sprite contact — so it never wakes (or
         ;; bills) the sprite and works even while the notebook is paused. The
         ;; render is self-contained, so the whole view is this one document; any
         ;; sub-path isn't part of it.
-        (and html (doc-path? path))
-        (snapshot-response req html)
+        (and captured? (doc-path? path))
+        (snapshot-response req html-file)
 
-        html
+        captured?
         (response/not-found "This is a static snapshot; that path isn't part of it.")
 
         ;; No snapshot yet (brand-new notebook) → fall back to the live sprite,

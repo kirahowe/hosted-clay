@@ -57,7 +57,7 @@
 (defn sweep!
   "One pass of the idle policy: warn, then delete. Each notebook is
    handled independently so one failure doesn't block the rest."
-  [ds client send-email {:keys [warn-after-days delete-after-days] :as opts}]
+  [ds client send-email {:keys [warn-after-days delete-after-days snapshots-dir] :as opts}]
   (let [rows (crud/find-many ds :notebooks)
         now  (Instant/now)]
     (doseq [nb (to-warn rows now warn-after-days)]
@@ -67,6 +67,6 @@
           (log/error t "warning failed" {:notebook-id (:notebooks/id nb)}))))
     (doseq [nb (to-delete rows now delete-after-days)]
       (try
-        (notebooks/delete! ds client nb)
+        (notebooks/delete! ds client snapshots-dir nb)
         (catch Throwable t
           (log/error t "idle deletion failed" {:notebook-id (:notebooks/id nb)}))))))

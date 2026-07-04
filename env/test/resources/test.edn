@@ -1,6 +1,7 @@
 {:hosted-clay.concerns/http-kit {:opts {:port 0}}
 
  :hosted-clay.db/datasource {:db-path "target/test/hosted-clay.db"}
+ :hosted-clay/snapshots-dir "target/test/snapshots"
 
  :hosted-clay/sprite-tag "test"
 

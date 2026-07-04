@@ -24,8 +24,8 @@
 (defn- loop!
   [{:keys [datasource sprites-client email tick-ms sweep-every-ticks census-every-ticks
            census-log-every-ticks pool-target max-sprites max-running usage-limit-hours
-           usage-warn-hours snapshot-refresh-minutes warn-after-days delete-after-days base-url
-           idle-suspend-minutes sprite-tag]}
+           usage-warn-hours snapshot-refresh-minutes snapshots-dir warn-after-days
+           delete-after-days base-url idle-suspend-minutes sprite-tag]}
    running?]
   ;; Each awake sample during a census run is worth one census interval of awake
   ;; time (nominal — close enough for a soft monthly budget). A short interval
@@ -65,7 +65,7 @@
                             ;; the share/source views never wake a sprite.
                             ;; (Internally throttled to snapshot-refresh-minutes,
                             ;; so a frequent census just checks age more often.)
-                            (snapshot/refresh-awake! datasource sprites-client
+                            (snapshot/refresh-awake! datasource sprites-client snapshots-dir
                                                      (:awake-notebooks c)
                                                      snapshot-refresh-minutes)))))
         (when (zero? (mod tick sweep-every-ticks))
@@ -73,6 +73,7 @@
                         #(lifecycle/sweep! datasource sprites-client email
                                            {:warn-after-days   warn-after-days
                                             :delete-after-days delete-after-days
+                                            :snapshots-dir     snapshots-dir
                                             :base-url          base-url})))
         (Thread/sleep ^long tick-ms)
         (recur (inc tick))))))

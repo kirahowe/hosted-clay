@@ -109,7 +109,7 @@
         (response/see-other (routes/notebook (:notebooks/id notebook)))))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/delete
-  [_ {:keys [datasource sprites-client]}]
+  [_ {:keys [datasource sprites-client snapshots-dir]}]
   ;; Idempotent: delete the sprite + row when the caller owns a still-present
   ;; notebook, then always redirect to the dashboard. A second delete for the
   ;; same notebook — the two-tabs / double-submit race — finds the row already
@@ -118,7 +118,7 @@
   ;; unprobeable (same reasoning as with-owned-notebook's 404-on-miss).
   (fn [req]
     (when-let [notebook (owned-notebook datasource req)]
-      (notebooks/delete! datasource sprites-client notebook))
+      (notebooks/delete! datasource sprites-client snapshots-dir notebook))
     (response/see-other (routes/dashboard))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/restart
@@ -260,16 +260,18 @@
                          (str "edit/" (get-in req [:path-params :path])) req)))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/source
-  [_ {:keys [datasource]}]
-  ;; The owner's raw .clj, served straight from the last snapshot. Ownership is
-  ;; the only gate — no usage check — so the code is always retrievable, even
-  ;; while the notebook is paused for the month. Touches no sprite.
+  [_ {:keys [datasource snapshots-dir]}]
+  ;; The owner's raw .clj, streamed straight from the last snapshot file.
+  ;; Ownership is the only gate — no usage check — so the code is always
+  ;; retrievable, even while the notebook is paused for the month. Touches no
+  ;; sprite.
   (fn [req]
     (with-owned-notebook datasource req
       (fn [notebook]
-        (let [snap (snapshot/for-notebook datasource (:notebooks/id notebook))]
+        (let [file   (snapshot/source-file snapshots-dir (:notebooks/id notebook))
+              source (when (.exists file) (slurp file))]
           (response/html
-           (workspace/render-source notebook (:notebook-snapshots/source snap))))))))
+           (workspace/render-source notebook source)))))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/edit-root [_ _]
   ;; /n/:id/edit -> /n/:id/edit/ so code-server's relative asset URLs resolve

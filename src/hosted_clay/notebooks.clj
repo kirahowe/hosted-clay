@@ -6,6 +6,7 @@
             [clojure.tools.logging :as log]
             [hosted-clay.db.crud :as crud]
             [hosted-clay.pool :as pool]
+            [hosted-clay.snapshot :as snapshot]
             [hosted-clay.sprites.client :as sprites]
             [hosted-clay.sprites.provision :as provision])
   (:import (java.time Duration Instant)))
@@ -127,16 +128,19 @@
     stranded))
 
 (defn delete!
-  "Delete a notebook and its sprite. The sprite goes first (and
-   `delete-sprite!` retries a transient 5xx and tolerates a 404): if it
-   still fails the row survives so a re-delete can finish the job, whereas a
-   dangling sprite with no row would leak money invisibly. Safe to call
-   twice for the same notebook — the sprite delete is 404-tolerant and the
-   row delete is a 0-row no-op — so the two-tabs/double-submit race converges
-   instead of erroring."
-  [ds client notebook]
+  "Delete a notebook, its sprite, and its stored snapshot files. The sprite goes
+   first (and `delete-sprite!` retries a transient 5xx and tolerates a 404): if
+   it still fails the row survives so a re-delete can finish the job, whereas a
+   dangling sprite with no row would leak money invisibly. The row delete
+   cascades the snapshot row; the snapshot *files* on the volume have no such
+   cascade, so we remove them explicitly (best-effort). Safe to call twice for
+   the same notebook — the sprite delete is 404-tolerant, the row delete is a
+   0-row no-op, and the file delete tolerates already-gone — so the
+   two-tabs/double-submit race converges instead of erroring."
+  [ds client snapshots-dir notebook]
   (sprites/delete-sprite! client (:notebooks/sprite-name notebook))
   (crud/delete! ds :notebooks (:notebooks/id notebook))
+  (snapshot/delete-files! snapshots-dir (:notebooks/id notebook))
   (log/info "notebook deleted" {:notebook-id (:notebooks/id notebook)}))
 
 (defn suspended?

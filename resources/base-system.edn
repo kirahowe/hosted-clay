@@ -105,6 +105,11 @@
  {:datasource      #ig/ref :hosted-clay.db/datasource
   :migrations-path "migrations"}
 
+ ;; Where captured notebook snapshots (the rendered .html and raw .clj) are
+ ;; stored as files — kept out of SQLite because the render is ~1 MB. On a
+ ;; laptop this sits next to the dev DB; prod points it at the Fly volume.
+ :hosted-clay/snapshots-dir "data/snapshots"
+
  ;; ---------- auth (hanko api-url supplied per environment) ----------
 
  :hosted-clay.web/csrf {:site-origin #ig/ref :hosted-clay/base-url}
@@ -154,7 +159,8 @@
 
  :hosted-clay.handlers.notebooks/delete
  {:datasource     #ig/ref :hosted-clay.db/migrator
-  :sprites-client #ig/ref :hosted-clay.sprites/client}
+  :sprites-client #ig/ref :hosted-clay.sprites/client
+  :snapshots-dir  #ig/ref :hosted-clay/snapshots-dir}
 
  :hosted-clay.handlers.notebooks/restart
  {:datasource     #ig/ref :hosted-clay.db/migrator
@@ -173,7 +179,8 @@
  :hosted-clay.handlers.notebooks/edit-root {}
 
  :hosted-clay.handlers.notebooks/source
- {:datasource #ig/ref :hosted-clay.db/migrator}
+ {:datasource   #ig/ref :hosted-clay.db/migrator
+  :snapshots-dir #ig/ref :hosted-clay/snapshots-dir}
 
  :hosted-clay.handlers.notebooks/suspend
  {:datasource #ig/ref :hosted-clay.db/migrator}
@@ -184,7 +191,8 @@
  :hosted-clay.handlers/share
  {:datasource        #ig/ref :hosted-clay.db/migrator
   :sprites-client    #ig/ref :hosted-clay.sprites/client
-  :usage-limit-hours #ig/ref :hosted-clay/usage-limit-hours}
+  :usage-limit-hours #ig/ref :hosted-clay/usage-limit-hours
+  :snapshots-dir     #ig/ref :hosted-clay/snapshots-dir}
 
  :hosted-clay.handlers/share-root {}
 
@@ -195,6 +203,7 @@
   :sprites-client    #ig/ref :hosted-clay.sprites/client
   :email             #ig/ref :hosted-clay/email
   :base-url          #ig/ref :hosted-clay/base-url
+  :snapshots-dir     #ig/ref :hosted-clay/snapshots-dir
   :sprite-tag           #ig/ref :hosted-clay/sprite-tag
   :max-sprites          #ig/ref :hosted-clay/max-sprites
   :max-running          #ig/ref :hosted-clay/max-running
