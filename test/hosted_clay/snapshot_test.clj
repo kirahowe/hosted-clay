@@ -69,6 +69,73 @@
             (snapshot/capture! ds client dir nb)
             (is (= 1 (crud/count-rows ds :notebook-snapshots)))))))))
 
+(defn- etag-of [content]
+  (str "\"" (count content) "-" (hash content) "\""))
+
+(defn- revalidating-stub
+  "Like `http-stub`, but behaves as a real conditional file server: every 200
+   carries an ETag derived from the content, and a request whose If-None-Match
+   matches answers 304 with no body. `log` (an atom) collects
+   [path if-none-match status] so tests can assert what actually crossed the
+   wire."
+  [by-path log]
+  (fn [{:keys [url headers]}]
+    (let [path    (subs url (str/index-of url "/snapshot"))
+          content (get by-path path)
+          inm     (get headers "if-none-match")
+          resp    (cond
+                    (nil? content)             {:status 404 :body (io/input-stream (.getBytes "not found" "UTF-8"))}
+                    (= inm (etag-of content))  {:status 304}
+                    :else                      {:status  200
+                                                :headers {:etag (etag-of content)}
+                                                :body    (io/input-stream (.getBytes ^String content "UTF-8"))})]
+      (swap! log conj [path inm (:status resp)])
+      (doto (promise) (deliver resp)))))
+
+(deftest capture!-revalidates-with-etags
+  (with-notebook
+    (fn [ds nb dir]
+      (let [id  (:notebooks/id nb)
+            log (atom [])]
+        (with-redefs [http/request (revalidating-stub {"/snapshot/notebook.clj"  "code-v1"
+                                                       "/snapshot/notebook.html" "<html>v1</html>"} log)]
+          (testing "the first capture fetches in full and stores the validators"
+            (is (true? (snapshot/capture! ds client dir nb)))
+            (is (= [nil nil] (map second @log)) "nothing to revalidate against yet")
+            (let [snap (snapshot/for-notebook ds id)]
+              (is (= (etag-of "<html>v1</html>") (:notebook-snapshots/html-etag snap)))
+              (is (= (etag-of "code-v1") (:notebook-snapshots/source-etag snap)))))
+          (testing "an unchanged notebook answers 304s — nothing re-shipped, captured-at still bumps"
+            (reset! log [])
+            (let [before (:notebook-snapshots/captured-at (snapshot/for-notebook ds id))]
+              (Thread/sleep 5)
+              (is (true? (snapshot/capture! ds client dir nb)))
+              (is (= [304 304] (map last @log)) "both files revalidated, no bodies")
+              (is (= "<html>v1</html>" (slurp (snapshot/html-file dir id))) "file untouched")
+              (is (pos? (compare (:notebook-snapshots/captured-at (snapshot/for-notebook ds id)) before))
+                  "captured-at advanced, so the staleness window resets"))))
+        (testing "a changed file is re-fetched in full and its validator updated"
+          (reset! log [])
+          (with-redefs [http/request (revalidating-stub {"/snapshot/notebook.clj"  "code-v1"
+                                                         "/snapshot/notebook.html" "<html>v2</html>"} log)]
+            (is (true? (snapshot/capture! ds client dir nb)))
+            (is (= "<html>v2</html>" (slurp (snapshot/html-file dir id))))
+            (is (= {"/snapshot/notebook.html" 200 "/snapshot/notebook.clj" 304}
+                   (into {} (map (juxt first last)) @log))
+                "only the changed render was re-shipped")
+            (is (= (etag-of "<html>v2</html>")
+                   (:notebook-snapshots/html-etag (snapshot/for-notebook ds id))))))
+        (testing "a validator is never sent for a file that's gone locally —
+                  a 304 would leave nothing to serve, so it re-fetches in full"
+          (reset! log [])
+          (io/delete-file (snapshot/html-file dir id))
+          (with-redefs [http/request (revalidating-stub {"/snapshot/notebook.clj"  "code-v1"
+                                                         "/snapshot/notebook.html" "<html>v2</html>"} log)]
+            (is (true? (snapshot/capture! ds client dir nb)))
+            (is (= "<html>v2</html>" (slurp (snapshot/html-file dir id))) "file restored")
+            (is (= [nil 200] (->> @log (filter #(= "/snapshot/notebook.html" (first %))) first rest))
+                "no If-None-Match went out for the missing file")))))))
+
 (deftest capture!-keeps-prior-file-when-a-fetch-fails
   (with-notebook
     (fn [ds nb dir]
