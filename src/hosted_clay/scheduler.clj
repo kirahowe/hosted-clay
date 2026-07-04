@@ -8,6 +8,7 @@
             [clojure.tools.logging :as log]
             [integrant.core :as ig]
             [hosted-clay.census :as census]
+            [hosted-clay.idle :as idle]
             [hosted-clay.lifecycle :as lifecycle]
             [hosted-clay.notebooks :as notebooks]
             [hosted-clay.pool :as pool]
@@ -23,7 +24,8 @@
 (defn- loop!
   [{:keys [datasource sprites-client email tick-ms sweep-every-ticks census-every-ticks
            census-log-every-ticks pool-target max-sprites max-running usage-limit-hours
-           usage-warn-hours snapshot-refresh-minutes warn-after-days delete-after-days base-url]}
+           usage-warn-hours snapshot-refresh-minutes warn-after-days delete-after-days base-url
+           idle-suspend-minutes]}
    running?]
   ;; Each awake sample during a census run is worth one census interval of awake
   ;; time (nominal — close enough for a soft monthly budget). A short interval
@@ -36,6 +38,12 @@
                       #(pool/replenish! datasource sprites-client
                                         {:target      pool-target
                                          :max-sprites max-sprites}))
+        ;; Every tick: force-suspend any sprite a left-open tab is pinning awake
+        ;; past the idle window (the client-side pause can't run when the tab's
+        ;; machine is asleep or frozen). The proxy tracks last-activity in
+        ;; memory, so this is a cheap non-blocking read — no per-sprite polling.
+        (run-quietly! :idle-suspend
+                      #(idle/sweep! idle-suspend-minutes))
         (when (zero? (mod tick census-every-ticks))
           (run-quietly! :sprite-census
                         (fn []
@@ -73,10 +81,11 @@
   (let [config   (merge {:tick-ms 60000 :sweep-every-ticks 60
                          :census-every-ticks 1 :census-log-every-ticks 5} config)
         running? (atom true)]
-    (log/info "scheduler starting" {:tick-ms      (:tick-ms config)
-                                    :pool-target  (:pool-target config)
-                                    :max-sprites  (:max-sprites config)
-                                    :max-running  (:max-running config)})
+    (log/info "scheduler starting" {:tick-ms              (:tick-ms config)
+                                    :pool-target          (:pool-target config)
+                                    :max-sprites          (:max-sprites config)
+                                    :max-running          (:max-running config)
+                                    :idle-suspend-minutes (:idle-suspend-minutes config)})
     {:running? running?
      :thread   (async/thread
                  ;; One-time startup recovery before the periodic loop: any

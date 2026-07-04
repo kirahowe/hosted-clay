@@ -17,6 +17,7 @@
   (:import (java.net URI)
            (java.net.http HttpClient WebSocket WebSocket$Listener)
            (java.nio ByteBuffer)
+           (java.time Instant)
            (java.util.concurrent TimeUnit)))
 
 ;; ---------- header plumbing ----------
@@ -153,6 +154,69 @@
            :headers resp-headers
            :body    body})))))
 
+;; ---------- idle-suspend support ----------
+
+;; The workspace pauses itself client-side when you step away (the "Still
+;; working?" veil tears the iframes down, closing their sockets). But that JS
+;; can't run when the tab's machine is asleep or the browser has frozen it, so
+;; a left-open tab keeps its editor / Clay live-reload WebSocket open — pinning
+;; the sprite awake (and billing) indefinitely. As a server-side backstop the
+;; proxy tracks the WebSocket relays it's holding, keyed by notebook id, along
+;; with the last time each notebook sent a browser->sprite frame (a keystroke,
+;; an eval, a save — real user activity). The scheduler's idle sweep
+;; (hosted-clay.idle) reads that timestamp and, once a notebook has gone quiet
+;; past the window, closes its channels. Each close fires the relay's :on-close,
+;; which aborts the matching upstream socket to the sprite — with its last
+;; inbound connection gone the sprite idle-suspends. A frozen/asleep tab sends
+;; no frames, so it goes stale and suspends; an actively-used tab keeps its
+;; timestamp fresh and never does. Only WebSocket relays register; plain HTTP
+;; can't pin the sprite (it drains on its own short keep-alive).
+;;
+;; Shape: notebook-id -> {:channels #{browser-ch...} :active-at <Instant>}.
+(defonce ^:private relays (atom {}))
+
+(defn- register! [notebook-id ch]
+  (when notebook-id
+    (swap! relays update notebook-id
+           (fn [entry]
+             (-> (or entry {:channels #{}})
+                 (update :channels conj ch)
+                 (assoc :active-at (Instant/now)))))))
+
+(defn- deregister! [notebook-id ch]
+  (when notebook-id
+    (swap! relays (fn [m]
+                    (let [remaining (disj (get-in m [notebook-id :channels]) ch)]
+                      (if (empty? remaining)
+                        (dissoc m notebook-id)
+                        (assoc-in m [notebook-id :channels] remaining)))))))
+
+(defn- touch! [notebook-id]
+  ;; Stamp a browser->sprite frame as activity. Only touches a notebook that's
+  ;; still registered, so a frame racing with deregistration can't resurrect it.
+  (when notebook-id
+    (swap! relays (fn [m]
+                    (if (contains? m notebook-id)
+                      (assoc-in m [notebook-id :active-at] (Instant/now))
+                      m)))))
+
+(defn activity-snapshot
+  "A point-in-time view of the notebooks the proxy is relaying a live WebSocket
+   for, as notebook-id -> the Instant of the last browser->sprite frame (or of
+   the connection opening). The idle sweep compares these against now; a notebook
+   with no live relay isn't here and suspends on its own."
+  []
+  (into {} (map (fn [[id {:keys [active-at]}]] [id active-at])) @relays))
+
+(defn disconnect-notebook!
+  "Close every browser channel we're relaying for `notebook-id`, so the sprite
+   loses its inbound connections and idle-suspends. Each close fires the relay's
+   :on-close, which aborts the matching upstream socket. Idempotent; a no-op
+   when nothing is held."
+  [notebook-id]
+  (doseq [ch (get-in @relays [notebook-id :channels])]
+    (http-server/close ch)))
+
 ;; ---------- WebSocket relay ----------
 
 (defn- websocket-upgrade? [req]
@@ -218,7 +282,7 @@
         (.buildAsync (URI/create url) (downstream-listener browser-ch))
         (.get upstream-connect-timeout-secs TimeUnit/SECONDS))))
 
-(defn- relay-websocket [client sprite-url path req]
+(defn- relay-websocket [client sprite-url path req notebook-id]
   (let [url      (ws-url sprite-url path (:query-string req))
         ;; The upstream connect is async relative to the browser's
         ;; channel opening; park browser frames until it's up.
@@ -226,6 +290,9 @@
     (http-server/as-channel
      req
      {:on-open    (fn [ch]
+                    ;; Track the channel so the idle sweep can find and close it
+                    ;; if this tab goes quiet (see the relay registry above).
+                    (register! notebook-id ch)
                     (future
                       (try
                         (deliver upstream
@@ -237,11 +304,16 @@
                           (deliver upstream nil)
                           (http-server/close ch)))))
       :on-receive (fn [_ch msg]
+                    ;; A browser->sprite frame is real user activity (a
+                    ;; keystroke, an eval, a save); stamp it so the idle sweep
+                    ;; sees a live tab and leaves the sprite awake.
+                    (touch! notebook-id)
                     (when-let [^WebSocket ws @upstream]
                       (if (string? msg)
                         (.sendText ws ^String msg true)
                         (.sendBinary ws (ByteBuffer/wrap ^bytes msg) true))))
-      :on-close   (fn [_ch _status]
+      :on-close   (fn [ch _status]
+                    (deregister! notebook-id ch)
                     ;; The browser is gone. Drop the upstream connection to the
                     ;; sprite *hard* — `abort` closes the TCP socket at once,
                     ;; where a graceful `sendClose` only half-closes and can
@@ -265,9 +337,11 @@
    relays WebSocket upgrades. With `:strip-framing? true`, drops the
    response's framing headers so the page can be embedded in our
    same-origin workspace iframes — owner traffic only; the share view
-   forwards without it so its clickjacking protection stands."
+   forwards without it so its clickjacking protection stands. With
+   `:notebook-id`, a relayed WebSocket is tracked under that id so the idle
+   sweep can reclaim it (see the relay registry)."
   ([client sprite-url path req] (forward client sprite-url path req nil))
-  ([client sprite-url path req {:keys [strip-framing?]}]
+  ([client sprite-url path req {:keys [strip-framing? notebook-id]}]
    (if (websocket-upgrade? req)
-     (relay-websocket client sprite-url path req)
+     (relay-websocket client sprite-url path req notebook-id)
      (forward-http client sprite-url path req strip-framing?))))

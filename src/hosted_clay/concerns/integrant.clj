@@ -17,6 +17,7 @@
 (derive :hosted-clay/max-running :hosted-clay/const)
 (derive :hosted-clay/usage-limit-hours :hosted-clay/const)
 (derive :hosted-clay/usage-warn-hours :hosted-clay/const)
+(derive :hosted-clay/idle-suspend-minutes :hosted-clay/const)
 
 ;; ---------- EDN reader literals ----------
 

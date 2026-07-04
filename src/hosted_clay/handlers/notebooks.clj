@@ -233,7 +233,8 @@
                      (:notebooks/sprite-url notebook)
                      sub-path
                      req
-                     {:strip-framing? true}))))
+                     {:strip-framing? true
+                      :notebook-id    (:notebooks/id notebook)}))))
 
 (defmethod ig/init-key :hosted-clay.handlers.notebooks/view
   [_ {:keys [datasource sprites-client usage-limit-hours]}]

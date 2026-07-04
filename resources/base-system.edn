@@ -31,6 +31,19 @@
  :hosted-clay/usage-limit-hours 50
  :hosted-clay/usage-warn-hours  40
 
+ ;; Server-side idle-suspend backstop. The workspace pauses itself client-side
+ ;; when you step away, but that JS can't run when the tab's machine is asleep or
+ ;; the browser has frozen it — so a left-open tab keeps its editor / live-reload
+ ;; WebSocket open and pins the sprite awake (and billing). The proxy stamps
+ ;; every browser->sprite frame (a keystroke, an eval, a save) as activity; every
+ ;; tick the scheduler drops any notebook whose last frame is older than this,
+ ;; and the sprite idle-suspends. A frozen/asleep tab sends nothing, so it goes
+ ;; quiet and drops; an actively-used tab stays awake. The owner's next keystroke
+ ;; wakes it (sub-second, REPL/editor state intact). The client-side "Still
+ ;; working?" pause (~4 min) still handles live tabs gracefully; this only fires
+ ;; when the browser can't. nil/0 disables it.
+ :hosted-clay/idle-suspend-minutes 25
+
  ;; ---------- http ----------
 
  :hosted-clay.concerns.reitit/router
@@ -173,10 +186,11 @@
   :sprites-client    #ig/ref :hosted-clay.sprites/client
   :email             #ig/ref :hosted-clay/email
   :base-url          #ig/ref :hosted-clay/base-url
-  :max-sprites       #ig/ref :hosted-clay/max-sprites
-  :max-running       #ig/ref :hosted-clay/max-running
-  :usage-limit-hours #ig/ref :hosted-clay/usage-limit-hours
-  :usage-warn-hours  #ig/ref :hosted-clay/usage-warn-hours
+  :max-sprites          #ig/ref :hosted-clay/max-sprites
+  :max-running          #ig/ref :hosted-clay/max-running
+  :usage-limit-hours    #ig/ref :hosted-clay/usage-limit-hours
+  :usage-warn-hours     #ig/ref :hosted-clay/usage-warn-hours
+  :idle-suspend-minutes #ig/ref :hosted-clay/idle-suspend-minutes
   ;; The census poll drives the usage meter, so its cadence is the meter's
   ;; granularity. At 1 tick (1 minute) the meter tracks awake time to ~1 minute —
   ;; well finer than the ~1%/30-min the budget needs — while the cost log is

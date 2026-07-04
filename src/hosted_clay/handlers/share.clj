@@ -76,7 +76,8 @@
         (response/unavailable "The owner has suspended this notebook. Check back later.")
 
         :else
-        (proxy/forward sprites-client (:notebooks/sprite-url notebook) path req)))))
+        (proxy/forward sprites-client (:notebooks/sprite-url notebook) path req
+                       {:notebook-id (:notebooks/id notebook)})))))
 
 (defmethod ig/init-key :hosted-clay.handlers/share-root [_ _]
   (fn [req]
