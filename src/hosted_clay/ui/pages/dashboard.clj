@@ -175,8 +175,7 @@
               :placeholder "My notebook" :required true :maxlength 120}]]
     [:button.button--primary {:type "submit"} "Create notebook"]]
    [:p.hint
-    "If no pre-warmed environment is free, creating one takes a couple of "
-    "minutes while it's built — we'll show progress as it goes."]])
+    "If no pre-warmed environment is available, creating a new one takes a couple of minutes"]])
 
 (defn- page-header [user notebook]
   [:section.dash-head

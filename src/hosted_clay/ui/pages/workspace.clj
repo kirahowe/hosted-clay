@@ -92,7 +92,7 @@
     :spinner?   true
     :eyebrow    "Setting up"
     :heading    "Spinning up your notebook"
-    :lead       "This can sometimes take a couple of minutes."}))
+    :lead       "This can sometimes take a few minutes."}))
 
 (defn render-over-limit
   "Shown when a notebook has spent its monthly active-hours budget: the sprite

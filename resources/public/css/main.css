@@ -220,10 +220,11 @@ button:disabled,
   border-color: var(--accent-hover);
 }
 
-/* Large: for hero CTAs. */
+/* Large: for hero CTAs. Text steps up to --step-1 so it reads at the same
+   size as the hero lead beside it, rather than smaller than the page. */
 .button--lg {
   padding: var(--space-4) var(--space-6);
-  font-size: var(--step-0);
+  font-size: var(--step-1);
 }
 
 /* Destructive: stays quiet until hovered, then reads as danger. */
@@ -406,6 +407,19 @@ input[type="email"]:focus {
 main ul { padding-left: var(--space-4); margin: 0 0 var(--space-4); }
 main li { margin-bottom: var(--space-2); }
 
+/* ---------- prose page (privacy / terms) ---------- */
+
+/* A single column of long-form copy rendered from an editable text file
+   (see ui/prose.clj). Fills the page measure like every other section.
+   Margin-based: each heading and paragraph carries its own rhythm. */
+.prose h2 {
+  font-size: var(--step-1);
+  margin: var(--space-7) 0 var(--space-3);
+}
+.prose h3 { font-size: var(--step-0); margin: var(--space-5) 0 var(--space-2); }
+.prose > :first-child { margin-top: 0; }
+.prose p { line-height: 1.6; }
+
 /* ---------- hero ---------- */
 
 /* Margin-based container — the hero uses explicit margins, not gap, so
@@ -422,6 +436,10 @@ main > section.hero { margin-bottom: 0; }
 .hero .eyebrow { margin-bottom: var(--space-3); }
 .hero h1 { margin-bottom: var(--space-5); }
 .hero .lead { margin-bottom: var(--space-6); }
+/* The secondary "see a live example" link, right under the primary CTA — a
+   quiet text link that sits below the button without competing with it. */
+.hero-example { margin: 0 0 var(--space-3); }
+.hero-example a { font-weight: 500; }
 
 /* ---------- dashboard page header ---------- */
 

@@ -22,6 +22,7 @@
 (defn login     [] "/login")
 (defn logout    [] "/logout")
 (defn dashboard [] "/dashboard")
+(defn privacy   [] "/privacy")
 
 ;; ---------- owner notebook management: /n, /n/:id/* ----------
 

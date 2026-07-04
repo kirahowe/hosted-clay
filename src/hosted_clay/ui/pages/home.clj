@@ -62,16 +62,18 @@
    [:div.actions
     [:a.button.button--primary.button--lg {:href (routes/dashboard)}
      "Create your notebook"]]
+   ;; Placeholder href — swap "#" for the real read-only share link when ready.
+   [:p.hero-example [:a {:href "#"} "See a live example →"]]
    [:p.subtle "One free notebook per person while this is a prototype."]])
 
 (defn- preview []
   [:section
    [:div.preview
     [:img.preview-img
-     {:src     "/static/img/notebook-welcome.png"
-      :alt     "A fresh notebook open in the browser: the welcome cell shows a Clojure ns form requiring tablecloth, tableplot, plotje, and fastmath, under the heading \"Welcome to your Clojure data science notebook.\""
-      :width   "1970"
-      :height  "645"
+     {:src     "/static/img/notebook-split.png"
+      :alt     "The notebook open in the browser: a VS Code editor with Calva on the left showing a Clojure ns form and an iris scatter-plot snippet, and the live Clay-rendered notebook on the right — the same code above a petal-length vs petal-width scatter plot of the iris dataset, coloured by species with linear-model trend lines."
+      :width   "2000"
+      :height  "993"
       :loading "lazy"}]]])
 
 (defn- features []
@@ -88,7 +90,7 @@
     [:div.feature
      [:span.feature-icon icon-live]
      [:h3 "Re-render on demand"]
-     [:p "The environment is set up to re-renders the whole notebook with Clay on every save. Or render form-by-form with Calva's Clay integration."]]
+     [:p "The environment is set up to re-render the whole notebook with Clay on every save. Or render form-by-form with Calva's Clay integration."]]
     [:div.feature
      [:span.feature-icon icon-stack]
      [:h3 "Noj preloaded"]
@@ -132,7 +134,7 @@
      [:p
       "For now, I am subsidizing this first phase of the experiment. It is free thanks to my generous "
       [:a {:href "https://github.com/sponsors/kirahowe"} "GitHub Sponsors"]
-      ". If it goes well, I will find a way to make it sustainable, but for now I am happy to fund this initial prototype phase to see if this is even useful. If you would like to see this continue, please try it out and "
+      ". If it goes well, I will find a way to make it sustainable by adding paid tiers, or something, but for now I am happy to fund this initial prototype phase to see if this is even useful. If you would like to see this continue, please try it out and "
       [:a {:href "mailto:contact@kirahowe.com"} "let me know what you think"]
       ". You can email me, or find me in the Clojurians "
       [:a {:href "https://clojurians.zulipchat.com/#user/383513"} "Zulip"]
@@ -145,6 +147,16 @@
      [:p
       "This initial demo is limited to 40 users, each getting approximately 50 hours of notebook usage, with up to 10 users active at any one time. These limitations are in place to keep costs in check until I decide what to do with this project, if anything."])
     (faq-item
+     "What happens to my notebook and my data?"
+     [:p
+      "Your notebook and its files live on your own Sprite and persist between sessions -- close the tab and everything is exactly where you left it, REPL state and all, when you come back. When you step away the sprite suspends itself so it stops using resources, and your next keystroke wakes it."]
+     [:p
+      "Because this is a free prototype with a limited number of machines available, notebooks that sit unused eventually get deleted. You'll get a warning email after 23 days of inactivity, and the notebook is deleted after 30. And since this is an experimental environment and notebooks are publicly shareable for now, please don't put anything sensitive in a notebook -- no passwords, API keys, or private data. Anything you share with a read-only link becomes visible to anyone who has the link."]
+     [:p
+      "The full details are on the "
+      [:a {:href (routes/privacy)} "privacy & terms"]
+      " page."])
+    (faq-item
      "Who are you?"
      [:p
       "I'm Kira Howe (formerly McLean). I gave a "
@@ -156,10 +168,14 @@
 (defn- cta []
   [:section.cta
    [:p.eyebrow "Get started"]
-   [:h2 "Your first notebook is waiting."]
+   [:h2 "Your free notebook is waiting."]
    [:p "Sign in or create an account to get started."]
    [:a.button.button--primary.button--lg {:href (routes/dashboard)}
-    "Create your notebook"]])
+    "Create your notebook"]
+   [:p.subtle
+    "This project is open source — "
+    [:a {:href "https://github.com/kirahowe/hosted-clay"} "browse the code on GitHub"]
+    "."]])
 
 (defn render []
   (layout/page
@@ -175,6 +191,7 @@
      (faq)
      (cta)]
     (layout/site-footer
+     [:a {:href (routes/privacy)} "Privacy & terms"]
      [:a {:href "https://scicloj.github.io/clay/"} "Clay"]
      [:a {:href "https://scicloj.github.io/"} "scicloj"]
      [:a {:href "https://sprites.dev"} "Sprites"]

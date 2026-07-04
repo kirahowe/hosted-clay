@@ -30,6 +30,11 @@
            [:link {:rel "stylesheet" :href "/static/css/tokens.css"}]
            [:link {:rel "stylesheet" :href "/static/css/main.css"}]
            [:script {:src "/static/js/app.js" :defer true}]
+           ;; Umami — privacy-preserving, cookieless analytics (see the privacy
+           ;; page). Loaded on every page since every app page renders through here.
+           [:script {:defer            true
+                     :src              "https://kirasumami.pikapod.net/script.js"
+                     :data-website-id  "5c9cd935-89b8-4c26-ace9-308bb672afd1"}]
            head]
           [:body {:class body-class} body]]))))
 

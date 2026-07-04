@@ -1,0 +1,41 @@
+This is a small, free prototype run by one person, not a company. This page explains, hopefully in plain language, what happens to your notebook and to the data in it. This is not a contract or a promise, if anything here is unclear, please [email me](mailto:contact@kirahowe.com) and ask.
+
+## What this service is
+
+Clojure notebooks gives you a single Clojure data science notebook running on its own [Sprite](https://sprites.dev) — a small, stateful Linux machine — with the [scicloj](https://scicloj.github.io) stack preloaded. It's an experiment to see whether removing the setup makes Clojure's data science tools easier to try. It comes with no warranty and no uptime guarantee, and it may change or shut down at any time.
+
+## Open source
+
+This project is open source, and the code that runs it is [available on GitHub](https://github.com/kirahowe/hosted-clay). If you want to see exactly how any of this works — including how your data is handled — you can read the source.
+
+## What we store
+
+To run the service we keep only what we need:
+
+- The email address you sign in with, so we can identify your notebook and email you about it.
+- Your notebook and its files, which live on the disk of your own Sprite.
+- A little bookkeeping — when your notebook was created and last used, and how many hours it has been active this month — so the free tier stays within its limits.
+
+We don't sell or share your data, and there are no advertising trackers. For basic traffic stats — how many people visit and roughly where they come from — I use [Umami](https://umami.is/), a privacy-preserving, open-source analytics tool that doesn't use cookies, store personal data, or track you across other sites. The only cookie we set is the one that keeps you signed in.
+
+## Where your notebook lives, and how long it lasts
+
+Your notebook and everything in it persist between sessions. When you step away, your Sprite suspends itself and stops using resources; your next keystroke wakes it with your files and REPL exactly as you left them.
+
+Because this is a free prototype with a limited number of machines, notebooks that sit unused eventually get deleted. If your notebook goes untouched you will receive an email after 23 days, and the notebook will be deleted after 30 days of inactivity. You can come back start a fresh one if there is capacity.
+
+You can also delete your notebook yourself at any time from your dashboard, which removes the Sprite and its disk.
+
+## Please don't put secrets here
+
+This is an experimental, shared environment, so treat it as public and temporary. **Don't put anything sensitive in a notebook** — no passwords, API keys, access tokens, or personal or confidential data. And remember that if you share a notebook with a read-only link, its rendered output becomes visible to anyone who has that link.
+
+## Deleting your data
+
+If you'd like a copy of what we store about you, or want your notebook and email removed entirely, [email me](mailto:contact@kirahowe.com) and I will delete everything stored about you. This matters especially to friends in the EU and UK: this is a good-faith, minimalist project, and I'm happy to personally fulfill any request under the GDPR.
+
+## Changes
+
+If any of this changes in a way that matters, I'll update this page. Continuing to use the service means you're OK with the current version.
+
+Last updated: July 3, 2026.
