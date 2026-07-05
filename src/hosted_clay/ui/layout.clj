@@ -3,8 +3,53 @@
             [hosted-clay.routes :as routes]
             [hosted-clay.ui.assets :as assets]))
 
+(def ^:private site-name "Clojure Notebooks")
+
 (def ^:private description
   "Hosted Clay notebooks for Clojure data science — a real editor, a live REPL, zero setup.")
+
+;; The canonical public origin, used only to build absolute URLs for
+;; crawler-facing metadata (Open Graph / Twitter cards). Deliberately a
+;; constant rather than the per-environment base-url: a link shared from any
+;; environment should preview against production, never a localhost origin.
+(def ^:private site-origin "https://clojurenotebooks.dev")
+
+;; The default social-share image — the homepage screenshot. 2000×993 (~2:1),
+;; which is the summary_large_image sweet spot.
+(def ^:private share-image
+  {:path   "/static/img/notebook-split.png"
+   :width  "2000"
+   :height "993"
+   :alt    "A Clojure notebook open in the browser: a VS Code editor with Calva on the left and the live Clay-rendered notebook — an iris scatter plot — on the right."})
+
+(defn- social-meta
+  "Open Graph + Twitter Card tags for a rich link preview. `og-title` and
+   `og-desc` default to the page title and the site description; the optional
+   `og` opts map can override :title, :description, :url and :type. The image is
+   always the homepage screenshot, absolute and content-hashed so a new
+   screenshot re-scrapes cleanly."
+  [title {:keys [og]}]
+  (let [og-title (or (:title og) title)
+        og-desc  (or (:description og) description)
+        og-type  (or (:type og) "website")
+        og-url   (or (:url og) (str site-origin "/"))
+        img-url  (str site-origin (assets/versioned (:path share-image)))]
+    (list
+     [:meta {:property "og:site_name" :content site-name}]
+     [:meta {:property "og:type" :content og-type}]
+     [:meta {:property "og:title" :content og-title}]
+     [:meta {:property "og:description" :content og-desc}]
+     [:meta {:property "og:url" :content og-url}]
+     [:meta {:property "og:image" :content img-url}]
+     [:meta {:property "og:image:width" :content (:width share-image)}]
+     [:meta {:property "og:image:height" :content (:height share-image)}]
+     [:meta {:property "og:image:alt" :content (:alt share-image)}]
+     ;; X/Twitter falls back to the Open Graph tags above for title, description
+     ;; and image, so we only carry the two Twitter-specific bits: the card
+     ;; layout (there's no OG equivalent) and the image alt (X ignores
+     ;; og:image:alt).
+     [:meta {:name "twitter:card" :content "summary_large_image"}]
+     [:meta {:name "twitter:image:alt" :content (:alt share-image)}])))
 
 (defn page
   "Wraps `body` in a complete HTML document with the standard head and
@@ -12,7 +57,7 @@
    <body>. The optional opts map may supply extra `:head` hiccup (e.g. a
    page-specific stylesheet) and a `:body-class`."
   ([title body] (page title body nil))
-  ([title body {:keys [head body-class]}]
+  ([title body {:keys [head body-class] :as opts}]
    (str "<!DOCTYPE html>\n"
         (h/html
          {:mode :html}
@@ -27,6 +72,7 @@
            [:meta {:name "theme-color" :content "#ffffff" :media "(prefers-color-scheme: light)"}]
            [:meta {:name "theme-color" :content "#0d0d0f" :media "(prefers-color-scheme: dark)"}]
            [:title title]
+           (social-meta title opts)
            [:link {:rel "icon" :type "image/svg+xml" :href "/static/favicon.svg"}]
            [:link {:rel "stylesheet" :href (assets/versioned "/static/css/tokens.css")}]
            [:link {:rel "stylesheet" :href (assets/versioned "/static/css/main.css")}]

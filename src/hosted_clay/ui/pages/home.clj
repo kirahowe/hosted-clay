@@ -195,4 +195,6 @@
      [:a {:href "https://scicloj.github.io/clay/"} "Clay"]
      [:a {:href "https://scicloj.github.io/"} "scicloj"]
      [:a {:href "https://sprites.dev"} "Sprites"]
-     [:a {:href "https://github.com/kirahowe/hosted-clay"} "GitHub"])]))
+     [:a {:href "https://github.com/kirahowe/hosted-clay"} "GitHub"])]
+   {:og {:title       "Clojure data science, no setup required"
+         :description "Hosted Clay notebooks for the scicloj community — a real VS Code editor, a live REPL, and Noj preloaded. Sign in and start doing Clojure data science in the browser."}}))
