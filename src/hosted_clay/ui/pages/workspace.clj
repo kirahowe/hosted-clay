@@ -27,10 +27,6 @@
           {:type "submit"
            :title "Suspend the notebook so its sprite sleeps and stops billing"}
           "Suspend"]]
-        [:button.workspace-action.workspace-restart
-         {:type "button"
-          :title "Restart the notebook environment if the output stops responding"}
-         "Restart"]
         [:button.workspace-action {:type "button" :data-copy share-url}
          "Copy share link"]]]
       [:div.workspace-panes

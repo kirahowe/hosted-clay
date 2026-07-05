@@ -62,8 +62,7 @@
    [:div.actions
     [:a.button.button--primary.button--lg {:href (routes/dashboard)}
      "Create your notebook"]]
-   ;; Placeholder href — swap "#" for the real read-only share link when ready.
-   [:p.hero-example [:a {:href "#"} "See a live example →"]]
+   [:p.hero-example [:a {:href "https://clojurenotebooks.dev/s/8j1dir15cao6hukvecnere0dd/"} "See a live example →"]]
    [:p.subtle "One free notebook per person while this is a prototype."]])
 
 (defn- preview []
