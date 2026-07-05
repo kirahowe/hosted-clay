@@ -125,7 +125,7 @@
      [:p
       "This is an experiment. Clojure has a lot of benefits when it comes to working with data, but it can be a bit daunting knowing where to start. Clojure's data science community, "
       [:a {:href "https://scicloj.github.io"} "Scicloj"]
-      ", has put tremendous effort into making Clojure's data science toolkit easier to use and more approachable in recent years, and this is one more contribution toward that effort -- a way to test how much of the barrier to adoption is really just the setup. If we can remove all of that friction by offering a truly zero-setup environment to play with, does getting started feel easier?"]
+      ", has put tremendous effort into making Clojure's data science toolkit easier to use and more approachable in recent years, and this is one more contribution toward that effort — a way to test how much of the barrier to adoption is really just the setup. If we can remove all of that friction by offering a truly zero-setup environment to play with, does getting started feel easier?"]
      [:p
       "Here you'll get a fully functional, free notebook with Clojure's full data science stack loaded and running on a real JVM, backed by your very own "
       [:a {:href "https://sprites.dev"} "Sprite"] "."])
@@ -149,9 +149,9 @@
     (faq-item
      "What happens to my notebook and my data?"
      [:p
-      "Your notebook and its files live on your own Sprite and persist between sessions -- close the tab and everything is exactly where you left it, REPL state and all, when you come back. When you step away the sprite suspends itself so it stops using resources, and your next keystroke wakes it."]
+      "Your notebook and its files live on your own Sprite and persist between sessions — close the tab and everything is exactly where you left it, REPL state and all, when you come back. When you step away the sprite suspends itself so it stops using resources, and your next keystroke wakes it."]
      [:p
-      "Because this is a free prototype with a limited number of machines available, notebooks that sit unused eventually get deleted. You'll get a warning email after 23 days of inactivity, and the notebook is deleted after 30. And since this is an experimental environment and notebooks are publicly shareable for now, please don't put anything sensitive in a notebook -- no passwords, API keys, or private data. Anything you share with a read-only link becomes visible to anyone who has the link."]
+      "Because this is a free prototype with a limited number of machines available, notebooks that sit unused eventually get deleted. You'll get a warning email after 23 days of inactivity, and the notebook is deleted after 30. And since this is an experimental environment and notebooks are publicly shareable for now, please don't put anything sensitive in a notebook —  no passwords, API keys, or private data. Anything you share with a read-only link becomes visible to anyone who has the link."]
      [:p
       "The full details are on the "
       [:a {:href (routes/privacy)} "privacy & terms"]
