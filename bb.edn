@@ -12,11 +12,10 @@
   {:private true
    :task    (dep/require-cli! "docker" "https://docs.docker.com/get-docker/")}
 
-  repl     {:doc              "Start an interactive nREPL server (dev + test on the classpath); connect your editor to .nrepl-port"
-            :override-builtin true
-            :task             (dep/sh! "clojure" "-M:dev:test:nrepl")}
+  nrepl    {:doc  "Start an interactive nREPL server (dev + test on the classpath); connect your editor to .nrepl-port"
+            :task (dep/sh! "clojure" "-M:dev:test:nrepl")}
 
-  dev      {:doc  "Run the dev system; reuses a running REPL (bb repl / editor) if one is up"
+  dev      {:doc  "Run the dev system; reuses a running REPL (bb nrepl / editor) if one is up"
             :task (dev-task/dev!)}
 
   lint     {:doc  "Lint with clj-kondo"

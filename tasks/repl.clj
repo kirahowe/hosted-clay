@@ -1,12 +1,12 @@
 (ns repl
   "Talking to a running nREPL from a bb task. Discovers the server via
-   the conventional `.nrepl-port` file (written by `bb dev`, `bb repl`,
+   the conventional `.nrepl-port` file (written by `bb dev`, `bb nrepl`,
    or an editor jack-in) and evals over a raw bencode socket — no client
    dep, bencode ships with bb.
 
    Port discovery means tasks never hardcode a port: they hit whichever
    REPL is currently advertising itself, whether that's `bb dev`, `bb
-   repl`, or the editor you jacked in to."
+   nrepl`, or the editor you jacked in to."
   (:require [babashka.fs :as fs]
             [bencode.core :as bencode]
             [clojure.java.io :as io]

@@ -7,7 +7,7 @@
        which boots the system, opens a cider-nrepl, and writes
        `.nrepl-port`.
      - a live REPL advertised -> boot the system *inside that JVM* over
-       nREPL and exit. The editor (or `bb repl`) owns that JVM's
+       nREPL and exit. The editor (or `bb nrepl`) owns that JVM's
        lifecycle, and we avoid a second process fighting over the http
        port.
 
