@@ -27,7 +27,7 @@
   fmt:fix  {:doc  "Fix formatting with cljfmt"
             :task (dep/sh! "clojure" "-M:cljfmt" "fix")}
 
-  test     {:doc  "Run tests with kaocha"
+  test     {:doc  "Run tests with volley"
             :task (dep/sh! "clojure" "-M:test")}
 
   test:tasks {:doc  "Run tests for the bb task infrastructure (under bb)"

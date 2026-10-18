@@ -10,7 +10,7 @@ Clay-rendered output, share a read-only link. Each notebook runs in its own
 ```
 bb dev      # start the dev system on http://localhost:3000
 bb nrepl    # nREPL with dev+test on the classpath; (dev) (go) (reset)
-bb test     # kaocha
+bb test     # volley
 bb ci       # lint + fmt check + tests
 ```
 

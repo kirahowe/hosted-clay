@@ -2,7 +2,7 @@
   "Runs the bb-task test suite under bb itself. Necessary because the
    tested namespaces (`dev-task`, `repl`) use bb's built-in stdlib
    (`bencode.core`, `babashka.fs`, `babashka.process`) which isn't
-   available under the JVM-Clojure / kaocha runner."
+   available under the JVM-Clojure / volley runner."
   (:require [clojure.test :as t]
             tasks.dev-test
             tasks.repl-test))

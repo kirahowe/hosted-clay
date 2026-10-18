@@ -44,13 +44,13 @@
            :main-opts   ["-m" "hosted-clay.dev.main"]}
 
   :test   {:extra-paths ["test" "env/test/resources"]
-           :extra-deps  {lambdaisland/kaocha {:mvn/version "1.91.1392"}
+           :extra-deps  {com.kirahowe/volley  {:mvn/version "0.1.0-alpha.1"}
                          ring/ring-mock      {:mvn/version "0.6.2"}}
            :jvm-opts    ["--enable-native-access=ALL-UNNAMED"]
-           :main-opts   ["-m" "kaocha.runner"]}
+           :main-opts   ["-m" "volley.main"]}
 
   ;; Main-opts-only overlay: combined LAST (after :dev:test) so its REPL
-  ;; main-opts win over :test's kaocha runner. Starts an nREPL server with
+  ;; main-opts win over :test's volley runner. Starts an nREPL server with
   ;; cider middleware and drops into an interactive prompt — writes
   ;; .nrepl-port so an editor can connect to this same (env-bearing) process.
   ;; The nrepl/cider deps come from :dev, which it's always combined with.

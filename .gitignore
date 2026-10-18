@@ -21,3 +21,6 @@ data/snapshots/
 .DS_Store
 
 docs/
+
+# volley (parallel test runner) cache
+.volley/
