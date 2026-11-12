@@ -44,7 +44,7 @@
            :main-opts   ["-m" "hosted-clay.dev.main"]}
 
   :test   {:extra-paths ["test" "env/test/resources"]
-           :extra-deps  {com.kirahowe/volley  {:mvn/version "0.1.0-alpha.1"}
+           :extra-deps  {com.kirahowe/volley  {:mvn/version "0.1.0-alpha.2"}
                          ring/ring-mock      {:mvn/version "0.6.2"}}
            :jvm-opts    ["--enable-native-access=ALL-UNNAMED"]
            :main-opts   ["-m" "volley.main"]}
