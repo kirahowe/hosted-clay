@@ -26,17 +26,3 @@ jobs:
           key: ${{ runner.os }}-deps-${{ hashFiles('deps.edn') }}
           restore-keys: ${{ runner.os }}-deps-
       - run: bb ci
-
-  deploy:
-    needs: ci
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: deploy-prod
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
