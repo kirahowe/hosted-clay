@@ -1,5 +1,10 @@
 # hosted-clay
 
+**This project is retired.** The hosted service at clojurenotebooks.dev was
+shut down on November 18, 2026, and the accounts and notebooks on it were
+deleted. The code is available here for anyone who is curious how it worked or
+wants to run their own version.
+
 A browser-based hosted environment for [Clay](https://scicloj.github.io/clay/)
 notebooks: sign in, create a notebook, edit Clojure in the browser, see
 Clay-rendered output, share a read-only link. Each notebook runs in its own
